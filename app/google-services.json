@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "860031006151",
+    "project_id": "courtbookingapp-2b2d9",
+    "storage_bucket": "courtbookingapp-2b2d9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:860031006151:android:6b0b29843524a15efc55e2",
+        "android_client_info": {
+          "package_name": "ntu.lehoangdanggia.badminton_booking"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiZyB4wNIOEfeCMW43PP8E2RND-opBUvc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

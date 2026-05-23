@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="60dp"
+    android:orientation="horizontal"
+    android:background="#FFFFFF">
+
+    <TextView
+        android:id="@+id/tvRowCourtName"
+        android:layout_width="70dp"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="Sân 1"
+        android:textColor="#15803D"
+        android:textStyle="bold"
+        android:background="@drawable/bg_court_name_cell" /> <androidx.recyclerview.widget.RecyclerView
+    android:id="@+id/rvTimeCells"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal" />
+</LinearLayout>
