@@ -26,7 +26,11 @@ public class CourtListActivity extends AppCompatActivity {
     private List<CourtRow> courtRowList;
     private CourtTimelineAdapter timelineAdapter;
 
-    private String[] timeSlots = {"05:00", "05:30", "06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00"};
+    private String[] timeSlots = {
+            "05:00 - 05:30", "05:30 - 06:00", "06:00 - 06:30", "06:30 - 07:00",
+            "07:00 - 07:30", "07:30 - 08:00", "08:00 - 08:30", "08:30 - 09:00",
+            "09:00 - 09:30", "09:30 - 10:00", "10:00 - 10:30", "10:30 - 11:00"
+    };
 
     // Biến lưu độ rộng ô (mặc định ban đầu là 30)
     private int currentCellWidthDp = 30;
