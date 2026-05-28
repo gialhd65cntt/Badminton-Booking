@@ -17,4 +17,7 @@ public class TimeCell {
     public String getStatus() { return status; }
     public String getCustomerName() { return customerName; }
     public String getPhoneNumber() { return phoneNumber; }
+    public String getTimeRangeString() {
+        return timeLabel;
+    }
 }

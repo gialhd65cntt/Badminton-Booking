@@ -14,9 +14,12 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.text.DecimalFormat; // Fix lỗi Cannot resolve symbol 'DecimalFormat'
+import android.widget.Toast;
 import java.util.List;
 
 public class CourtListActivity extends AppCompatActivity {
+
 
     private LinearLayout layoutTimeLabels;
     private RecyclerView rvCourtTimeline;
@@ -65,6 +68,7 @@ public class CourtListActivity extends AppCompatActivity {
     }
 
     // Hàm dựng và cập nhật lại toàn bộ giao diện khi có thay đổi độ to nhỏ
+
     private void updateTimelineView() {
         // Vẽ lại thanh tiêu đề giờ ở trên
         buildTimelineHeaders();
@@ -80,6 +84,43 @@ public class CourtListActivity extends AppCompatActivity {
 
             // Truyền kích thước ô vào cho adapter quản lý
             timelineAdapter.setCellWidthDp(currentCellWidthDp);
+
+            timelineAdapter.setOnCellClickListener((String courtName, TimeCell cell) -> {
+                String timeRange = cell.getTimeRangeString();
+
+                if ("Trống".equals(cell.getStatus())) {
+                    // Tính tiền dựa vào khung giờ
+                    int price = calculatePriceForSlot(timeRange);
+                    DecimalFormat formatter = new DecimalFormat("#,###");
+                    String priceFormatted = formatter.format(price) + "đ";
+
+                    // Hiển thị Dialog xác nhận đặt sân
+                    new AlertDialog.Builder(CourtListActivity.this)
+                            .setTitle("Xác nhận chọn sân")
+                            .setMessage("Bạn đang chọn đặt lịch với thông tin:\n\n"
+                                    + "📍 Sân: " + courtName + "\n"
+                                    + "🕒 Thời gian: " + timeRange + "\n"
+                                    + "💰 Giá ca này: " + priceFormatted)
+                            .setPositiveButton("Tiếp tục đặt", (dialog, which) -> {
+                                Toast.makeText(CourtListActivity.this,
+                                        "Đang chuyển đến màn hình điền thông tin phiếu đặt...",
+                                        Toast.LENGTH_SHORT).show();
+                            })
+                            .setNegativeButton("Hủy", null)
+                            .show();
+                } else {
+                    // Nếu ô đã được đặt, hiện thông tin chi tiết lịch đặt
+                    new AlertDialog.Builder(CourtListActivity.this)
+                            .setTitle("Thông tin lịch đặt")
+                            .setMessage("Sân: " + courtName + "\n"
+                                    + "Thời gian: " + timeRange + "\n"
+                                    + "Trạng thái: " + cell.getStatus() + "\n" // Thêm () vào đây
+                                    + "Khách hàng: " + cell.getCustomerName() + "\n" // Thêm () vào đây
+                                    + "Số điện thoại: " + cell.getPhoneNumber()) // Thêm () vào đây
+                            .setPositiveButton("Đóng", null)
+                            .show();
+                }
+            });
 
             RecyclerView.OnScrollListener synchronizedScrollListener = new RecyclerView.OnScrollListener() {
                 @Override
@@ -116,8 +157,7 @@ public class CourtListActivity extends AppCompatActivity {
         layoutTimeLabels.removeAllViews();
 
         // Tính pixel dựa trên biến cấu hình kích thước linh hoạt cuat ô
-        int cellWidth = (int) (currentCellWidthDp * 2.5 * getResources().getDisplayMetrics().density);
-        // Mẹo nhỏ: Nhân thêm 2.5 để ô tỷ lệ 30dp tương đương rộng tầm ~75-80dp nhìn cho vừa vặn chữ thông tin đặt sân bên dưới.
+        int cellWidth = (int) (currentCellWidthDp * 3.5 * getResources().getDisplayMetrics().density);
 
         for (String time : timeSlots) {
             TextView tv = new TextView(this);
@@ -218,5 +258,21 @@ public class CourtListActivity extends AppCompatActivity {
         // Sử dụng bộ nhớ độc lập cho Sân 3 và Sân 4 để tránh lỗi thay đổi dữ liệu chéo nhau
         courtRowList.add(new CourtRow("Sân 3", new ArrayList<>(cellsCourt2)));
         courtRowList.add(new CourtRow("Sân 4", new ArrayList<>(cellsCourt2)));
+    }
+    private int calculatePriceForSlot(String timeSlot) {
+        if (timeSlot == null || timeSlot.isEmpty()) return 0;
+
+        // Ví dụ: Lấy ra mốc giờ bắt đầu để xét khung (Ví dụ chuỗi "05:00 - 05:30" lấy ra "05")
+        String startHourStr = timeSlot.substring(0, 2);
+        int startHour = Integer.parseInt(startHourStr);
+
+        // Bảng tính giá tiền (Đơn vị: VNĐ cho mỗi 30 phút)
+        if (startHour >= 5 && startHour < 12) {
+            return 65000; // Ca sáng sớm (5g - 8g): 30k / 30 phút (tương đương 60k/giờ)
+        } else if (startHour >= 12 && startHour < 17) {
+            return 70000; // Ca sáng - trưa thấp điểm (8g - 16g): 25k / 30 phút
+        } else {
+            return 80000; // Ca chiều tối cao điểm (16g - 22g): 40k / 30 phút (tương đương 80k/giờ)
+        }
     }
 }

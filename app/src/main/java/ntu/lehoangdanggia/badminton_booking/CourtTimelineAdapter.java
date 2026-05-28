@@ -36,6 +36,15 @@ public class CourtTimelineAdapter extends RecyclerView.Adapter<CourtTimelineAdap
     public List<RecyclerView> getRegisteredScrollViews() {
         return registeredScrollViews;
     }
+    public interface OnCellClickListener {
+        void onCellClick(String courtName, TimeCell cell); // Đảm bảo ở đây là TimeCell chứ không phải Object nhé!
+    }
+
+    private OnCellClickListener cellClickListener;
+
+    public void setOnCellClickListener(OnCellClickListener listener) {
+        this.cellClickListener = listener;
+    }
 
     @NonNull
     @Override
@@ -46,11 +55,17 @@ public class CourtTimelineAdapter extends RecyclerView.Adapter<CourtTimelineAdap
 
     @Override
     public void onBindViewHolder(@NonNull RowViewHolder holder, int position) {
+
         CourtRow row = courtRows.get(position);
         holder.tvCourtName.setText(row.getCourtName());
 
         TimeCellAdapter cellAdapter = new TimeCellAdapter(row.getTimeCells());
         cellAdapter.setCellWidthDp(cellWidthDp);
+        cellAdapter.setOnCellClickListener(cell -> {
+            if (cellClickListener != null) {
+                cellClickListener.onCellClick(row.getCourtName(), cell);
+            }
+        });
         holder.rvTimeCells.setLayoutManager(new LinearLayoutManager(holder.itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
         holder.rvTimeCells.setAdapter(cellAdapter);
 
