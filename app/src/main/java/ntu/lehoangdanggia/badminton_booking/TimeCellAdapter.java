@@ -48,6 +48,7 @@ public class TimeCellAdapter extends RecyclerView.Adapter<TimeCellAdapter.CellVi
                 cellClickListener.onCellClick(cell); // Kích hoạt callback truyền đi
             }
         });
+
         // Đổi màu nền ô theo trạng thái giống ảnh mẫu
         if ("Trống".equals(cell.getStatus())) {
             holder.layoutBookedInfo.setVisibility(View.GONE);
@@ -69,6 +70,8 @@ public class TimeCellAdapter extends RecyclerView.Adapter<TimeCellAdapter.CellVi
                     break;
             }
         }
+        if (cell.isSelected()) {
+            holder.itemView.setBackgroundColor(android.graphics.Color.parseColor("#F59E0B"));}
     }
 
     @Override

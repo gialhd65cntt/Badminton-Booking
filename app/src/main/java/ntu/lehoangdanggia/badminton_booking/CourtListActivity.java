@@ -28,11 +28,24 @@ public class CourtListActivity extends AppCompatActivity {
 
     private List<CourtRow> courtRowList;
     private CourtTimelineAdapter timelineAdapter;
+    private LinearLayout layoutQuickBookingBar;
+    private TextView tvQuickBookingSummary, tvQuickBookingPrice;
+    private android.widget.Button btnQuickBookingSubmit;
 
+    // Danh sách chứa các ô người dùng đang Click chọn
+    private List<TimeCell> selectedCellsList = new ArrayList<>();
+    // Biến lưu tên sân đang chọn (để kiểm tra xem khách có chọn lộn sang sân khác không)
+    private String selectedCourtName = "";
     private String[] timeSlots = {
             "05:00 - 05:30", "05:30 - 06:00", "06:00 - 06:30", "06:30 - 07:00",
             "07:00 - 07:30", "07:30 - 08:00", "08:00 - 08:30", "08:30 - 09:00",
-            "09:00 - 09:30", "09:30 - 10:00", "10:00 - 10:30", "10:30 - 11:00"
+            "09:00 - 09:30", "09:30 - 10:00", "10:00 - 10:30", "10:30 - 11:00",
+            "11:00 - 11:30", "11:30 - 12:00", "12:00 - 12:30", "12:30 - 13:00",
+            "13:00 - 13:30", "13:30 - 14:00", "14:00 - 14:30", "14:30 - 15:00",
+            "15:00 - 15:30", "15:30 - 16:00", "16:00 - 16:30", "16:30 - 17:00",
+            "17:00 - 17:30", "17:30 - 18:00", "18:00 - 18:30", "18:30 - 19:00",
+            "19:00 - 19:30", "19:30 - 20:00", "20:00 - 20:30", "20:30 - 21:00",
+            "21:00 - 21:30", "21:30 - 22:00"
     };
 
     // Biến lưu độ rộng ô (mặc định ban đầu là 30)
@@ -52,6 +65,16 @@ public class CourtListActivity extends AppCompatActivity {
         tvFilterCellWidth = findViewById(R.id.tvFilterCellWidth);
         tvDateLabel = findViewById(R.id.tvDateLabel);
         ImageView btnBack = findViewById(R.id.btnBack);
+
+        layoutQuickBookingBar = findViewById(R.id.layoutQuickBookingBar);
+        tvQuickBookingSummary = findViewById(R.id.tvQuickBookingSummary);
+        tvQuickBookingPrice = findViewById(R.id.tvQuickBookingPrice);
+        btnQuickBookingSubmit = findViewById(R.id.btnQuickBookingSubmit);
+
+        btnQuickBookingSubmit.setOnClickListener(v -> {
+            // Logic chuyển sang màn hình hóa đơn với selectedCellsList
+            Toast.makeText(this, "Chuyển tới thanh toán " + selectedCellsList.size() + " ca!", Toast.LENGTH_SHORT).show();
+        });
 
         if (btnBack != null) {
             btnBack.setOnClickListener(v -> finish());
@@ -86,40 +109,40 @@ public class CourtListActivity extends AppCompatActivity {
             timelineAdapter.setCellWidthDp(currentCellWidthDp);
 
             timelineAdapter.setOnCellClickListener((String courtName, TimeCell cell) -> {
-                String timeRange = cell.getTimeRangeString();
-
-                if ("Trống".equals(cell.getStatus())) {
-                    // Tính tiền dựa vào khung giờ
-                    int price = calculatePriceForSlot(timeRange);
-                    DecimalFormat formatter = new DecimalFormat("#,###");
-                    String priceFormatted = formatter.format(price) + "đ";
-
-                    // Hiển thị Dialog xác nhận đặt sân
-                    new AlertDialog.Builder(CourtListActivity.this)
-                            .setTitle("Xác nhận chọn sân")
-                            .setMessage("Bạn đang chọn đặt lịch với thông tin:\n\n"
-                                    + "📍 Sân: " + courtName + "\n"
-                                    + "🕒 Thời gian: " + timeRange + "\n"
-                                    + "💰 Giá ca này: " + priceFormatted)
-                            .setPositiveButton("Tiếp tục đặt", (dialog, which) -> {
-                                Toast.makeText(CourtListActivity.this,
-                                        "Đang chuyển đến màn hình điền thông tin phiếu đặt...",
-                                        Toast.LENGTH_SHORT).show();
-                            })
-                            .setNegativeButton("Hủy", null)
-                            .show();
-                } else {
-                    // Nếu ô đã được đặt, hiện thông tin chi tiết lịch đặt
-                    new AlertDialog.Builder(CourtListActivity.this)
-                            .setTitle("Thông tin lịch đặt")
-                            .setMessage("Sân: " + courtName + "\n"
-                                    + "Thời gian: " + timeRange + "\n"
-                                    + "Trạng thái: " + cell.getStatus() + "\n" // Thêm () vào đây
-                                    + "Khách hàng: " + cell.getCustomerName() + "\n" // Thêm () vào đây
-                                    + "Số điện thoại: " + cell.getPhoneNumber()) // Thêm () vào đây
-                            .setPositiveButton("Đóng", null)
-                            .show();
+                // Nếu ô đã có người đặt rồi thì không cho chọn
+                if (!"Trống".equals(cell.getStatus())) {
+                    Toast.makeText(CourtListActivity.this, "Sân này đã có người đặt!", Toast.LENGTH_SHORT).show();
+                    return;
                 }
+
+                // KHÓA SÂN: Tránh việc người dùng bấm nhầm Ca 1 của Sân 1 và Ca 2 của Sân 2 cùng lúc
+                if (!selectedCellsList.isEmpty() && !selectedCourtName.equals(courtName)) {
+                    Toast.makeText(CourtListActivity.this, "Vui lòng chỉ chọn các ca trên cùng một sân!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // XỬ LÝ CHỌN / HUỶ CHỌN (Toggle)
+                if (cell.isSelected()) {
+                    // Nếu đang chọn rồi -> Bấm lại thì hủy chọn
+                    cell.setSelected(false);
+                    selectedCellsList.remove(cell);
+                } else {
+                    // Nếu chưa chọn -> Thêm vào danh sách giỏ hàng
+                    cell.setSelected(true);
+                    selectedCellsList.add(cell);
+                    selectedCourtName = courtName; // Ghim tên sân hiện tại lại
+                }
+
+                // Báo cho Adapter vẽ lại ô vừa click để đổi màu (Ví dụ: Đổi sang màu cam/vàng nhạt đang chọn)
+                for (int i = 0; i < courtRowList.size(); i++) {
+                    if (courtRowList.get(i).getCourtName().equals(courtName)) {
+                        timelineAdapter.notifyItemChanged(i); // Chỉ vẽ lại hàng sân này, giữ nguyên vị trí cuộn giờ!
+                        break;
+                    }
+                }
+
+                // CẬP NHẬT GIAO DIỆN THANH THÔNG BÁO DƯỚI ĐÁY
+                updateQuickBookingBar();
             });
 
             RecyclerView.OnScrollListener synchronizedScrollListener = new RecyclerView.OnScrollListener() {
@@ -231,33 +254,41 @@ public class CourtListActivity extends AppCompatActivity {
 
         // 1. Giả lập dữ liệu cho Sân 1 khớp chính xác với định dạng khoảng giờ mới
         List<TimeCell> cellsCourt1 = new ArrayList<>();
-        cellsCourt1.add(new TimeCell("05:00 - 05:30", "Trống", "", ""));
-        cellsCourt1.add(new TimeCell("05:30 - 06:00", "Trống", "", ""));
-        cellsCourt1.add(new TimeCell("06:00 - 06:30", "Lịch ngày", "Khoa", "0123"));
-        cellsCourt1.add(new TimeCell("06:30 - 07:00", "Lịch ngày", "Khoa", "0123"));
-        cellsCourt1.add(new TimeCell("07:00 - 07:30", "Cố định", "Tú", "0366"));
-        cellsCourt1.add(new TimeCell("07:30 - 08:00", "Lịch ngày", "Tú", ""));
-        cellsCourt1.add(new TimeCell("08:00 - 08:30", "Trống", "", ""));
-        cellsCourt1.add(new TimeCell("08:30 - 09:00", "Trống", "", ""));
-        cellsCourt1.add(new TimeCell("09:00 - 09:30", "Trống", "", ""));
-        cellsCourt1.add(new TimeCell("09:30 - 10:00", "Trống", "", ""));
-        cellsCourt1.add(new TimeCell("10:00 - 10:30", "Trống", "", ""));
-        cellsCourt1.add(new TimeCell("10:30 - 11:00", "Trống", "", ""));
-        cellsCourt1.add(new TimeCell("11:00 - 11:30", "Trống", "", ""));
+        for (String slot : timeSlots) {
+            // Fix cứng một vài ca đã đặt ở Sân 1 để test giao diện
+            if (slot.equals("06:00 - 06:30") || slot.equals("06:30 - 07:00")) {
+                cellsCourt1.add(new TimeCell(slot, "Lịch ngày", "Khoa", "0123"));
+            } else if (slot.equals("07:00 - 07:30")) {
+                cellsCourt1.add(new TimeCell(slot, "Cố định", "Tú", "0366"));
+            } else if (slot.equals("07:30 - 08:00")) {
+                cellsCourt1.add(new TimeCell(slot, "Lịch ngày", "Tú", ""));
+            } else {
+                // Các ca còn lại của Sân 1 là Trống
+                cellsCourt1.add(new TimeCell(slot, "Trống", "", ""));
+            }
+        }
+        courtRowList.add(new CourtRow("Sân 1", cellsCourt1));
 
-        // 2. Tự động tạo dữ liệu trống chạy theo mảng timeSlots cho Sân 2
+        // ---- 2. TỰ ĐỘNG TẠO DỮ LIỆU TRỐNG CHO SÂN 2 ----
         List<TimeCell> cellsCourt2 = new ArrayList<>();
         for (String slot : timeSlots) {
             cellsCourt2.add(new TimeCell(slot, "Trống", "", ""));
         }
-
-        // 3. Nạp tất cả vào danh sách hàng của CourtRow
-        courtRowList.add(new CourtRow("Sân 1", cellsCourt1));
         courtRowList.add(new CourtRow("Sân 2", cellsCourt2));
 
-        // Sử dụng bộ nhớ độc lập cho Sân 3 và Sân 4 để tránh lỗi thay đổi dữ liệu chéo nhau
-        courtRowList.add(new CourtRow("Sân 3", new ArrayList<>(cellsCourt2)));
-        courtRowList.add(new CourtRow("Sân 4", new ArrayList<>(cellsCourt2)));
+        // ---- 3. TỰ ĐỘNG TẠO DỮ LIỆU TRỐNG CHO SÂN 3 ----
+        List<TimeCell> cellsCourt3 = new ArrayList<>();
+        for (String slot : timeSlots) {
+            cellsCourt3.add(new TimeCell(slot, "Trống", "", ""));
+        }
+        courtRowList.add(new CourtRow("Sân 3", cellsCourt3));
+
+        // ---- 4. TỰ ĐỘNG TẠO DỮ LIỆU TRỐNG CHO SÂN 4 ----
+        List<TimeCell> cellsCourt4 = new ArrayList<>();
+        for (String slot : timeSlots) {
+            cellsCourt4.add(new TimeCell(slot, "Trống", "", ""));
+        }
+        courtRowList.add(new CourtRow("Sân 4", cellsCourt4));
     }
     private int calculatePriceForSlot(String timeSlot) {
         if (timeSlot == null || timeSlot.isEmpty()) return 0;
@@ -275,4 +306,32 @@ public class CourtListActivity extends AppCompatActivity {
             return 80000; // Ca chiều tối cao điểm (16g - 22g): 40k / 30 phút (tương đương 80k/giờ)
         }
     }
+    private void updateQuickBookingBar() {
+        if (selectedCellsList.isEmpty()) {
+            layoutQuickBookingBar.setVisibility(android.view.View.GONE);
+            selectedCourtName = ""; // Giải phóng khóa sân
+            return;
+        }
+
+        layoutQuickBookingBar.setVisibility(android.view.View.VISIBLE);
+
+        // 1. Tính tổng thời gian (Mỗi ô mặc định là 30 phút = 0.5 giờ)
+        double totalHours = selectedCellsList.size() * 0.5;
+        String durationText = (totalHours % 1 == 0) ? (int)totalHours + " tiếng" : totalHours + " tiếng";
+
+        // 2. Tính tổng tiền của tất cả các ô cộng lại
+        int totalPrice = 0;
+        for (TimeCell cell : selectedCellsList) {
+            totalPrice += calculatePriceForSlot(cell.getTimeLabel());
+        }
+
+        // Định dạng số tiền
+        DecimalFormat formatter = new DecimalFormat("#,###");
+        String priceFormatted = formatter.format(totalPrice) + " vnđ";
+
+        // 3. Hiển thị lên màn hình đúng định dạng yêu cầu
+        tvQuickBookingSummary.setText(selectedCourtName + " • " + durationText + " (" + selectedCellsList.size() + " ca)");
+        tvQuickBookingPrice.setText("Tổng tiền: " + priceFormatted);
+    }
+
 }
