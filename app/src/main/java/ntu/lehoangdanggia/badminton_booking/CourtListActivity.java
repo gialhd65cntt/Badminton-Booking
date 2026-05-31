@@ -1,5 +1,9 @@
 package ntu.lehoangdanggia.badminton_booking;
 
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.activity.result.ActivityResultLauncher;
+import android.content.Intent;
+import static android.app.Activity.RESULT_OK;
 import android.app.DatePickerDialog;
 import android.app.AlertDialog;
 import android.os.Bundle;
@@ -14,28 +18,29 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.text.DecimalFormat; // Fix lỗi Cannot resolve symbol 'DecimalFormat'
+import java.text.DecimalFormat;
 import android.widget.Toast;
 import java.util.List;
 
 public class CourtListActivity extends AppCompatActivity {
 
+    // Khai báo Firebase Firestore và Bộ lắng nghe Real-time
+    private com.google.firebase.firestore.FirebaseFirestore db = com.google.firebase.firestore.FirebaseFirestore.getInstance();
+    private com.google.firebase.firestore.ListenerRegistration firestoreListener;
 
     private LinearLayout layoutTimeLabels;
     private RecyclerView rvCourtTimeline;
     private HorizontalScrollView headerScroll;
     private TextView tvFilterDate, tvFilterCellWidth, tvDateLabel;
 
-    private List<CourtRow> courtRowList;
+    private List<CourtRow> courtRowList = new ArrayList<>();
     private CourtTimelineAdapter timelineAdapter;
     private LinearLayout layoutQuickBookingBar;
     private TextView tvQuickBookingSummary, tvQuickBookingPrice;
     private android.widget.Button btnQuickBookingSubmit;
 
-    // Danh sách chứa các ô người dùng đang Click chọn
     private List<TimeCell> selectedCellsList = new ArrayList<>();
-    // Biến lưu tên sân đang chọn (để kiểm tra xem khách có chọn lộn sang sân khác không)
-    private String selectedCourtName = "";
+
     private String[] timeSlots = {
             "05:00 - 05:30", "05:30 - 06:00", "06:00 - 06:30", "06:30 - 07:00",
             "07:00 - 07:30", "07:30 - 08:00", "08:00 - 08:30", "08:30 - 09:00",
@@ -48,9 +53,9 @@ public class CourtListActivity extends AppCompatActivity {
             "21:00 - 21:30", "21:30 - 22:00"
     };
 
-    // Biến lưu độ rộng ô (mặc định ban đầu là 30)
     private int currentCellWidthDp = 30;
     private boolean isSyncing = false;
+    private androidx.activity.result.ActivityResultLauncher<Intent> bookingLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,77 +76,210 @@ public class CourtListActivity extends AppCompatActivity {
         tvQuickBookingPrice = findViewById(R.id.tvQuickBookingPrice);
         btnQuickBookingSubmit = findViewById(R.id.btnQuickBookingSubmit);
 
+        // Khởi tạo Launcher nhận diện đặt sân thành công
+        bookingLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK) {
+                        // Xóa giỏ hàng tạm, giao diện sẽ tự vẽ lại thông qua bộ lắng nghe Real-time
+                        selectedCellsList.clear();
+                        updateQuickBookingBar();
+                        Toast.makeText(this, "Hệ thống đã cập nhật lịch đặt sân!", Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+
         btnQuickBookingSubmit.setOnClickListener(v -> {
-            // Logic chuyển sang màn hình hóa đơn với selectedCellsList
-            Toast.makeText(this, "Chuyển tới thanh toán " + selectedCellsList.size() + " ca!", Toast.LENGTH_SHORT).show();
+            if (selectedCellsList.isEmpty()) {
+                Toast.makeText(CourtListActivity.this, "Vui lòng chọn ít nhất một ca trống!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            Intent intent = new Intent(CourtListActivity.this, BookingConfirmActivity.class);
+            ArrayList<TimeCell> bundleList = new ArrayList<>(selectedCellsList);
+            intent.putExtra("CHOSEN_SLOTS", bundleList);
+            intent.putExtra("BOOKING_DATE", tvFilterDate.getText().toString());
+
+            bookingLauncher.launch(intent);
         });
 
         if (btnBack != null) {
             btnBack.setOnClickListener(v -> finish());
         }
 
-        // 1. XỬ LÝ CHỌN NGÀY
+        // Lấy ngày hiện tại hệ thống đổ lên Bộ lọc
+        java.util.Calendar calendar = java.util.Calendar.getInstance();
+        java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault());
+        String currentDate = dateFormat.format(calendar.getTime()) + " 📅";
+        tvFilterDate.setText(currentDate);
+        if (tvDateLabel != null) {
+            java.text.SimpleDateFormat labelFormat = new java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault());
+            tvDateLabel.setText("Ngày\n" + labelFormat.format(calendar.getTime()));
+        }
+        // Đóng sự kiện chọn ngày để mở DatePickerDialog
         tvFilterDate.setOnClickListener(v -> showDatePicker());
 
-        // 2. XỬ LÝ CHỈNH ĐỘ TO NHỎ CỦA LƯỚI
+        // Xử lý chỉnh kích thước ô lưới
         tvFilterCellWidth.setOnClickListener(v -> showCellWidthDialog());
 
-        // Khởi tạo khung hình ban đầu
+        // Khởi tạo khung hình trống ban đầu trước khi kích hoạt lắng nghe Firebase
+        initEmptyCourts();
         updateTimelineView();
+
+        // Bắt đầu lắng nghe dữ liệu Firestore real-time theo ngày hiện tại
+        listenToFirestoreBookings(currentDate);
     }
 
-    // Hàm dựng và cập nhật lại toàn bộ giao diện khi có thay đổi độ to nhỏ
+    // Khởi tạo lưới trống ban đầu cho 4 sân quản lý
+    private void initEmptyCourts() {
+        courtRowList.clear();
+        String[] danhSachSan = {"Sân 1", "Sân 2", "Sân 3", "Sân 4"};
+        for (String tenSan : danhSachSan) {
+            List<TimeCell> cells = new ArrayList<>();
+            for (String slot : timeSlots) {
+                cells.add(new TimeCell(slot, "Trống", "", ""));
+            }
+            courtRowList.add(new CourtRow(tenSan, cells));
+        }
+    }
 
-    private void updateTimelineView() {
-        // Vẽ lại thanh tiêu đề giờ ở trên
-        buildTimelineHeaders();
-
-        // Nạp data giả lập (Nếu có data thật từ Firebase thì nạp ở đây)
-        if (courtRowList == null) {
-            setupFakeData();
+    // HÀM LẮNG NGHE REAL-TIME TỪ FIRESTORE THEO ĐỊNH DẠNG MỚI
+    private void listenToFirestoreBookings(String targetDate) {
+        // Chuyển "25/05/2026 📅" -> "2026-05-25" để khớp cấu trúc query
+        String cleanDate = targetDate.replace(" 📅", "").trim();
+        if (cleanDate.contains("/")) {
+            String[] parts = cleanDate.split("/");
+            cleanDate = parts[2] + "-" + parts[1] + "-" + parts[0];
         }
 
-        // Khởi tạo hoặc cập nhật Adapter
+        if (firestoreListener != null) firestoreListener.remove();
+
+        initEmptyCourts();
+
+        firestoreListener = db.collection("bookings")
+                .whereEqualTo("date", cleanDate)
+                .whereEqualTo("status", "confirm")
+                .addSnapshotListener((snapshots, e) -> {
+                    // CẢI TIẾN AN TOÀN: Nếu Firebase trả về lỗi (Ví dụ: DEVELOPER_ERROR do sai SHA-1)
+                    // Ứng dụng sẽ không bị lỗi logic ngầm dẫn đến treo hoặc out màn hình.
+                    if (e != null) {
+                        android.util.Log.e("FirestoreError", "Lỗi kết nối Firebase: " + e.getMessage());
+
+                        // Hiển thị thông báo lỗi cụ thể lên giao diện thay vì im lặng hoặc crash
+                        TextView tvStatus = findViewById(R.id.tvStatus);
+                        if (tvStatus != null) {
+                            tvStatus.setText("Lỗi kết nối Firebase (Sai SHA-1/Cấu hình)!");
+                            tvStatus.setTextColor(android.graphics.Color.RED);
+                        }
+
+                        Toast.makeText(CourtListActivity.this, "Không thể tải dữ liệu sân từ hệ thống!", Toast.LENGTH_LONG).show();
+                        return; // Thoát hàm an toàn
+                    }
+
+                    if (snapshots == null) return;
+
+                    // Khởi tạo lại lưới trống sạch sẽ trước khi đè dữ liệu mới cập nhật về
+                    initEmptyCourts();
+
+                    for (com.google.firebase.firestore.QueryDocumentSnapshot doc : snapshots) {
+                        String bookingID = doc.getString("bookingID");
+                        String courtID = doc.getString("courtID");     // e.g. "Sân 1"
+                        String starTime = doc.getString("starTime");   // e.g. "17:00"
+                        String endTime = doc.getString("endTime");       // e.g. "19:00"
+                        String userID = doc.getString("UserID");         // Tên khách đặt
+
+                        int bStart = convertTimeToMinutes(starTime);
+                        int bEnd = convertTimeToMinutes(endTime);
+
+                        for (CourtRow row : courtRowList) {
+                            if (row.getCourtName().equals(courtID)) {
+                                for (TimeCell cell : row.getTimeCells()) {
+                                    String[] cellParts = cell.getTimeLabel().split(" - ");
+                                    int cellStart = convertTimeToMinutes(cellParts[0]);
+                                    int cellEnd = convertTimeToMinutes(cellParts[1]);
+
+                                    // Nếu ô nhỏ nằm trọn trong khoảng starTime -> endTime của phiếu đặt
+                                    if (cellStart >= bStart && cellEnd <= bEnd) {
+                                        cell.setStatus("Lịch ngày");
+                                        cell.setCustomerName(userID);     // Đổ tên người đặt
+                                        cell.setPhoneNumber(bookingID);   // Găm mã bookingID vào biến ĐT để phục vụ xử lý Hủy
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (timelineAdapter != null) {
+                        timelineAdapter.notifyDataSetChanged();
+                    }
+                });
+    }
+
+    private int convertTimeToMinutes(String timeStr) {
+        String[] parts = timeStr.split(":");
+        return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
+    }
+
+    private void updateTimelineView() {
+        buildTimelineHeaders();
+
         if (timelineAdapter == null) {
             timelineAdapter = new CourtTimelineAdapter(courtRowList);
-
-            // Truyền kích thước ô vào cho adapter quản lý
             timelineAdapter.setCellWidthDp(currentCellWidthDp);
 
             timelineAdapter.setOnCellClickListener((String courtName, TimeCell cell) -> {
-                // Nếu ô đã có người đặt rồi thì không cho chọn
+
+                // --- CHỨC NĂNG DÀNH RIÊNG CHO ADMIN: HỦY SÂN THEO BOOKING ID ---
+                if ("Lịch ngày".equals(cell.getStatus())) {
+                    String bID = cell.getPhoneNumber(); // Lấy mã bookingID đã ghim
+
+                    new android.app.AlertDialog.Builder(CourtListActivity.this)
+                            .setTitle("Xác nhận hủy lịch đặt")
+                            .setMessage("Hủy toàn bộ lượt đặt sân này của khách: " + cell.getCustomerName() + "?")
+                            .setPositiveButton("Xóa lịch", (dialog, which) -> {
+                                db.collection("bookings").document(bID)
+                                        .delete()
+                                        .addOnSuccessListener(aVoid -> {
+                                            Toast.makeText(CourtListActivity.this, "Đã hủy lịch đặt thành công!", Toast.LENGTH_SHORT).show();
+                                        })
+                                        .addOnFailureListener(err -> {
+                                            Toast.makeText(CourtListActivity.this, "Lỗi hủy sân: " + err.getMessage(), Toast.LENGTH_SHORT).show();
+                                        });
+                            })
+                            .setNegativeButton("Đóng", null)
+                            .show();
+                    return;
+                }
+
                 if (!"Trống".equals(cell.getStatus())) {
-                    Toast.makeText(CourtListActivity.this, "Sân này đã có người đặt!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(CourtListActivity.this, "Sân này không thể chọn!", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                // KHÓA SÂN: Tránh việc người dùng bấm nhầm Ca 1 của Sân 1 và Ca 2 của Sân 2 cùng lúc
-                if (!selectedCellsList.isEmpty() && !selectedCourtName.equals(courtName)) {
-                    Toast.makeText(CourtListActivity.this, "Vui lòng chỉ chọn các ca trên cùng một sân!", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                // XỬ LÝ CHỌN / HUỶ CHỌN (Toggle)
+                // Xử lý chọn/hủy chọn các ô trống màu cam
                 if (cell.isSelected()) {
-                    // Nếu đang chọn rồi -> Bấm lại thì hủy chọn
                     cell.setSelected(false);
-                    selectedCellsList.remove(cell);
+                    cell.setCustomerName("");
+
+                    for (int i = 0; i < selectedCellsList.size(); i++) {
+                        TimeCell selected = selectedCellsList.get(i);
+                        if (selected.getTimeLabel().equals(cell.getTimeLabel()) && selected.getCustomerName().equals(cell.getCustomerName())) {
+                            selectedCellsList.remove(i);
+                            break;
+                        }
+                    }
                 } else {
-                    // Nếu chưa chọn -> Thêm vào danh sách giỏ hàng
                     cell.setSelected(true);
+                    cell.setCustomerName(courtName); // Ghim tạm tên sân vào ô chọn
                     selectedCellsList.add(cell);
-                    selectedCourtName = courtName; // Ghim tên sân hiện tại lại
                 }
 
-                // Báo cho Adapter vẽ lại ô vừa click để đổi màu (Ví dụ: Đổi sang màu cam/vàng nhạt đang chọn)
                 for (int i = 0; i < courtRowList.size(); i++) {
                     if (courtRowList.get(i).getCourtName().equals(courtName)) {
-                        timelineAdapter.notifyItemChanged(i); // Chỉ vẽ lại hàng sân này, giữ nguyên vị trí cuộn giờ!
+                        timelineAdapter.notifyItemChanged(i, "UPDATE_SELECTION");
                         break;
                     }
                 }
 
-                // CẬP NHẬT GIAO DIỆN THANH THÔNG BÁO DƯỚI ĐÁY
                 updateQuickBookingBar();
             });
 
@@ -169,7 +307,6 @@ public class CourtListActivity extends AppCompatActivity {
             rvCourtTimeline.setHasFixedSize(true);
             rvCourtTimeline.setAdapter(timelineAdapter);
         } else {
-            // Nếu adapter đã có, chỉ cần cập nhật lại kích thước và báo vẽ lại dữ liệu
             timelineAdapter.setCellWidthDp(currentCellWidthDp);
             timelineAdapter.notifyDataSetChanged();
         }
@@ -179,7 +316,6 @@ public class CourtListActivity extends AppCompatActivity {
         if (layoutTimeLabels == null) return;
         layoutTimeLabels.removeAllViews();
 
-        // Tính pixel dựa trên biến cấu hình kích thước linh hoạt cuat ô
         int cellWidth = (int) (currentCellWidthDp * 3.5 * getResources().getDisplayMetrics().density);
 
         for (String time : timeSlots) {
@@ -189,14 +325,13 @@ public class CourtListActivity extends AppCompatActivity {
             tv.setGravity(Gravity.CENTER);
             tv.setText(time);
             tv.setTextColor(android.graphics.Color.parseColor("#475569"));
-            tv.setTextSize(currentCellWidthDp > 25 ? 12 : 10); // Tự thu nhỏ chữ nếu ô quá nhỏ
+            tv.setTextSize(currentCellWidthDp > 25 ? 12 : 10);
             tv.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
             tv.setBackgroundResource(R.drawable.bg_court_name_cell);
             layoutTimeLabels.addView(tv);
         }
     }
 
-    // Hộp thoại hiển thị chọn Ngày
     private void showDatePicker() {
         final Calendar c = Calendar.getInstance();
         int year = c.get(Calendar.YEAR);
@@ -208,20 +343,19 @@ public class CourtListActivity extends AppCompatActivity {
                     String formattedDate = String.format("%02d/%02d/%04d", selectedDay, selectedMonth + 1, selectedYear);
                     tvFilterDate.setText(formattedDate + " 📅");
 
-                    // Cập nhật luôn ô nhãn "Thứ / Ngày" nhỏ ở góc lưới cho đồng bộ
                     if (tvDateLabel != null) {
                         tvDateLabel.setText("Ngày\n" + String.format("%02d/%02d", selectedDay, selectedMonth + 1));
                     }
 
-                    // Ở đây bạn có thể gọi hàm load dữ liệu sân từ Firebase theo ngày vừa chọn
+                    // Kích hoạt lắng nghe dữ liệu từ Firebase theo ngày mới chọn
+                    listenToFirestoreBookings(tvFilterDate.getText().toString());
                 }, year, month, day);
         datePickerDialog.show();
     }
 
-    // Hộp thoại hiển thị chọn Độ rộng lưới (Thu nhỏ / Phóng to)
     private void showCellWidthDialog() {
         String[] options = {"Nhỏ (Cột 20) 🔍", "Vừa (Cột 30) 🔎", "Lớn (Cột 40) 放大"};
-        int checkedItem = 1; // Mặc định hiển thị là Vừa (30)
+        int checkedItem = 1;
         if (currentCellWidthDp == 20) checkedItem = 0;
         if (currentCellWidthDp == 40) checkedItem = 2;
 
@@ -229,109 +363,65 @@ public class CourtListActivity extends AppCompatActivity {
         builder.setTitle("Chỉnh độ rộng cột giờ:");
         builder.setSingleChoiceItems(options, checkedItem, (dialog, which) -> {
             switch (which) {
-                case 0:
-                    currentCellWidthDp = 20;
-                    break;
-                case 1:
-                    currentCellWidthDp = 30;
-                    break;
-                case 2:
-                    currentCellWidthDp = 40;
-                    break;
+                case 0: currentCellWidthDp = 20; break;
+                case 1: currentCellWidthDp = 30; break;
+                case 2: currentCellWidthDp = 40; break;
             }
-            // Cập nhật chữ trên bộ lọc
             tvFilterCellWidth.setText(currentCellWidthDp + " ↕");
-
-            // Vẽ lại toàn bộ giao diện bảng theo kích cỡ mới ngay lập tức
             updateTimelineView();
             dialog.dismiss();
         });
         builder.show();
     }
 
-    private void setupFakeData() {
-        courtRowList = new ArrayList<>();
-
-        // 1. Giả lập dữ liệu cho Sân 1 khớp chính xác với định dạng khoảng giờ mới
-        List<TimeCell> cellsCourt1 = new ArrayList<>();
-        for (String slot : timeSlots) {
-            // Fix cứng một vài ca đã đặt ở Sân 1 để test giao diện
-            if (slot.equals("06:00 - 06:30") || slot.equals("06:30 - 07:00")) {
-                cellsCourt1.add(new TimeCell(slot, "Lịch ngày", "Khoa", "0123"));
-            } else if (slot.equals("07:00 - 07:30")) {
-                cellsCourt1.add(new TimeCell(slot, "Cố định", "Tú", "0366"));
-            } else if (slot.equals("07:30 - 08:00")) {
-                cellsCourt1.add(new TimeCell(slot, "Lịch ngày", "Tú", ""));
-            } else {
-                // Các ca còn lại của Sân 1 là Trống
-                cellsCourt1.add(new TimeCell(slot, "Trống", "", ""));
-            }
-        }
-        courtRowList.add(new CourtRow("Sân 1", cellsCourt1));
-
-        // ---- 2. TỰ ĐỘNG TẠO DỮ LIỆU TRỐNG CHO SÂN 2 ----
-        List<TimeCell> cellsCourt2 = new ArrayList<>();
-        for (String slot : timeSlots) {
-            cellsCourt2.add(new TimeCell(slot, "Trống", "", ""));
-        }
-        courtRowList.add(new CourtRow("Sân 2", cellsCourt2));
-
-        // ---- 3. TỰ ĐỘNG TẠO DỮ LIỆU TRỐNG CHO SÂN 3 ----
-        List<TimeCell> cellsCourt3 = new ArrayList<>();
-        for (String slot : timeSlots) {
-            cellsCourt3.add(new TimeCell(slot, "Trống", "", ""));
-        }
-        courtRowList.add(new CourtRow("Sân 3", cellsCourt3));
-
-        // ---- 4. TỰ ĐỘNG TẠO DỮ LIỆU TRỐNG CHO SÂN 4 ----
-        List<TimeCell> cellsCourt4 = new ArrayList<>();
-        for (String slot : timeSlots) {
-            cellsCourt4.add(new TimeCell(slot, "Trống", "", ""));
-        }
-        courtRowList.add(new CourtRow("Sân 4", cellsCourt4));
-    }
     private int calculatePriceForSlot(String timeSlot) {
         if (timeSlot == null || timeSlot.isEmpty()) return 0;
-
-        // Ví dụ: Lấy ra mốc giờ bắt đầu để xét khung (Ví dụ chuỗi "05:00 - 05:30" lấy ra "05")
         String startHourStr = timeSlot.substring(0, 2);
         int startHour = Integer.parseInt(startHourStr);
 
-        // Bảng tính giá tiền (Đơn vị: VNĐ cho mỗi 30 phút)
         if (startHour >= 5 && startHour < 12) {
-            return 65000; // Ca sáng sớm (5g - 8g): 30k / 30 phút (tương đương 60k/giờ)
+            return 65000;
         } else if (startHour >= 12 && startHour < 17) {
-            return 70000; // Ca sáng - trưa thấp điểm (8g - 16g): 25k / 30 phút
+            return 70000;
         } else {
-            return 80000; // Ca chiều tối cao điểm (16g - 22g): 40k / 30 phút (tương đương 80k/giờ)
+            return 80000;
         }
     }
+
     private void updateQuickBookingBar() {
         if (selectedCellsList.isEmpty()) {
             layoutQuickBookingBar.setVisibility(android.view.View.GONE);
-            selectedCourtName = ""; // Giải phóng khóa sân
             return;
         }
 
         layoutQuickBookingBar.setVisibility(android.view.View.VISIBLE);
 
-        // 1. Tính tổng thời gian (Mỗi ô mặc định là 30 phút = 0.5 giờ)
-        double totalHours = selectedCellsList.size() * 0.5;
-        String durationText = (totalHours % 1 == 0) ? (int)totalHours + " tiếng" : totalHours + " tiếng";
-
-        // 2. Tính tổng tiền của tất cả các ô cộng lại
+        List<String> uniqueCourts = new ArrayList<>();
         int totalPrice = 0;
+
         for (TimeCell cell : selectedCellsList) {
+            String courtName = cell.getCustomerName();
+            if (!uniqueCourts.contains(courtName)) {
+                uniqueCourts.add(courtName);
+            }
             totalPrice += calculatePriceForSlot(cell.getTimeLabel());
         }
 
-        // Định dạng số tiền
+        StringBuilder courtsBuilder = new StringBuilder();
+        for (int i = 0; i < uniqueCourts.size(); i++) {
+            courtsBuilder.append(uniqueCourts.get(i));
+            if (i < uniqueCourts.size() - 1) {
+                courtsBuilder.append(", ");
+            }
+        }
+
+        double totalHours = selectedCellsList.size() * 0.5;
+        String durationText = (totalHours % 1 == 0) ? (int)totalHours + " tiếng" : totalHours + " tiếng";
+
         DecimalFormat formatter = new DecimalFormat("#,###");
         String priceFormatted = formatter.format(totalPrice) + " vnđ";
 
-        // 3. Hiển thị lên màn hình đúng định dạng yêu cầu
-        tvQuickBookingSummary.setText(selectedCourtName + " • " + durationText + " (" + selectedCellsList.size() + " ca)");
+        tvQuickBookingSummary.setText(courtsBuilder.toString() + " • " + durationText + " (" + selectedCellsList.size() + " ca)");
         tvQuickBookingPrice.setText("Tổng tiền: " + priceFormatted);
     }
-
 }

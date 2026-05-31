@@ -53,6 +53,20 @@ public class CourtTimelineAdapter extends RecyclerView.Adapter<CourtTimelineAdap
         return new RowViewHolder(view);
     }
 
+    // --- CHÈN THÊM HÀM NÀY VÀO TRONG CourtTimelineAdapter.java ---
+    @Override
+    public void onBindViewHolder(@NonNull RowViewHolder holder, int position, @NonNull List<Object> payloads) {
+        if (!payloads.isEmpty() && payloads.contains("UPDATE_SELECTION")) {
+            // NẾU LÀ LỆNH CẬP NHẬT CHỌN: Chỉ bảo Adapter con thông báo thay đổi dữ liệu, tuyệt đối không tạo lại LayoutManager
+            if (holder.rvTimeCells.getAdapter() != null) {
+                holder.rvTimeCells.getAdapter().notifyDataSetChanged();
+            }
+        } else {
+            // Nếu không có payload, chạy lại hàm bind toàn bộ mặc định của bạn
+            super.onBindViewHolder(holder, position, payloads);
+        }
+    }
+
     @Override
     public void onBindViewHolder(@NonNull RowViewHolder holder, int position) {
 

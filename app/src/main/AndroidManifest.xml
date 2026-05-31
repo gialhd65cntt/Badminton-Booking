@@ -32,6 +32,9 @@
             android:name=".CourtListActivity"
             android:exported="false">
         </activity>
+        <activity
+            android:name=".BookingConfirmActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

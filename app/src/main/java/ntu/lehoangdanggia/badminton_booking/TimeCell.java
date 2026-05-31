@@ -1,6 +1,6 @@
 package ntu.lehoangdanggia.badminton_booking;
-
-public class TimeCell {
+import java.io.Serializable;
+public class TimeCell implements Serializable {
     private String timeLabel;    // "05:00", "05:30"...
     private String status;       // "Trống", "Cố định", "Lịch ngày", "Linh hoạt"
     private String customerName;
@@ -23,5 +23,16 @@ public class TimeCell {
     public String getPhoneNumber() { return phoneNumber; }
     public String getTimeRangeString() {
         return timeLabel;
+    }
+
+    public void setCustomerName(String courtName) {
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
 }

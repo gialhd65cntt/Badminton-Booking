@@ -51,33 +51,36 @@ public class TimeCellAdapter extends RecyclerView.Adapter<TimeCellAdapter.CellVi
 
         // Đổi màu nền ô theo trạng thái giống ảnh mẫu
         if ("Trống".equals(cell.getStatus())) {
-            holder.layoutBookedInfo.setVisibility(View.GONE);
             holder.itemView.setBackgroundColor(Color.WHITE);
+            holder.tvStatus.setText(""); // Ô trống thì để trống chữ hoặc hiện chữ "Trống" tùy bạn
         } else {
-            holder.layoutBookedInfo.setVisibility(View.VISIBLE);
-            holder.tvCustomerName.setText(cell.getCustomerName());
-            holder.tvPhone.setText(cell.getPhoneNumber());
-
-            switch (cell.getStatus()) {
-                case "Cố định":
-                    holder.itemView.setBackgroundColor(Color.parseColor("#38BDF8")); // Xanh dương
-                    break;
-                case "Lịch ngày":
-                    holder.itemView.setBackgroundColor(Color.parseColor("#10B981")); // Xanh lá
-                    break;
-                case "Linh hoạt":
-                    holder.itemView.setBackgroundColor(Color.parseColor("#F59E0B")); // Vàng cam
-                    break;
+            // Nếu là "Lịch ngày" hoặc "Cố định" -> Đổi màu nền tương ứng
+            if ("Cố định".equals(cell.getStatus())) {
+                holder.itemView.setBackgroundColor(Color.parseColor("#38BDF8")); // Xanh dương
+            } else {
+                holder.itemView.setBackgroundColor(Color.parseColor("#10B981")); // Xanh lá đặt lịch
             }
+
+            // HIỂN THỊ TÊN VÀ SĐT TRỰC TIẾP LÊN Ô CHO ADMIN XEM
+            String displayInfo = cell.getCustomerName() + "\n" + cell.getPhoneNumber();
+            holder.tvStatus.setText(displayInfo);
+            holder.tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 10);
+
         }
+
         if (cell.isSelected()) {
-            holder.itemView.setBackgroundColor(android.graphics.Color.parseColor("#F59E0B"));}
+            holder.itemView.setBackgroundColor(Color.parseColor("#F59E0B")); // Màu cam đang chọn
+        }
+
+        // Giữ nguyên sự kiện holder.itemView.setOnClickListener...
     }
 
     @Override
     public int getItemCount() { return cellList.size(); }
 
     public static class CellViewHolder extends RecyclerView.ViewHolder {
+        TextView tvStatus;
+
         LinearLayout layoutBookedInfo;
         TextView tvCustomerName, tvPhone;
 
@@ -86,6 +89,7 @@ public class TimeCellAdapter extends RecyclerView.Adapter<TimeCellAdapter.CellVi
             layoutBookedInfo = itemView.findViewById(R.id.layoutBookedInfo);
             tvCustomerName = itemView.findViewById(R.id.tvCellCustomerName);
             tvPhone = itemView.findViewById(R.id.tvCellPhone);
+            tvStatus = itemView.findViewById(R.id.tvStatus);
         }
     }
 }
