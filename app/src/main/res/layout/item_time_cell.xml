@@ -27,33 +27,26 @@
 
         <TextView
             android:id="@+id/tvCellCustomerName"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:text="Khoa"
             android:textColor="#FFFFFF"
             android:textSize="11sp"
             android:textStyle="bold"
             android:ellipsize="end"
             android:maxLines="1"/>
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text=""
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:ellipsize="end"
-            android:maxLines="2" />
 
         <TextView
             android:id="@+id/tvCellPhone"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:text="03662..."
             android:textColor="#FFFFFF"
             android:textSize="9sp"
             android:ellipsize="end"
-            android:maxLines="1"/>
+            android:maxLines="1"
+            android:layout_marginTop="2dp"/>
     </LinearLayout>
 </FrameLayout>

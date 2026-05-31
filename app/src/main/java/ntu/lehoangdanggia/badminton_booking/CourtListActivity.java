@@ -24,7 +24,6 @@ import java.util.List;
 
 public class CourtListActivity extends AppCompatActivity {
 
-    // Khai báo Firebase Firestore và Bộ lắng nghe Real-time
     private com.google.firebase.firestore.FirebaseFirestore db = com.google.firebase.firestore.FirebaseFirestore.getInstance();
     private com.google.firebase.firestore.ListenerRegistration firestoreListener;
 
@@ -57,12 +56,14 @@ public class CourtListActivity extends AppCompatActivity {
     private boolean isSyncing = false;
     private androidx.activity.result.ActivityResultLauncher<Intent> bookingLauncher;
 
+    private final String[] idTinh = {"7o8mrirBibMAop6nig3K", "CLVNJ0UEA1f9Zy809FnP", "rkRLeRKngVJ24sE4Tbex"};
+    private final String[] tenTinh = {"Sân 1", "Sân 2", "Sân 3"};
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_court_list);
 
-        // Ánh xạ các View
         layoutTimeLabels = findViewById(R.id.layoutTimeLabels);
         rvCourtTimeline = findViewById(R.id.rvCourtTimeline);
         headerScroll = findViewById(R.id.headerScroll);
@@ -76,12 +77,10 @@ public class CourtListActivity extends AppCompatActivity {
         tvQuickBookingPrice = findViewById(R.id.tvQuickBookingPrice);
         btnQuickBookingSubmit = findViewById(R.id.btnQuickBookingSubmit);
 
-        // Khởi tạo Launcher nhận diện đặt sân thành công
         bookingLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == RESULT_OK) {
-                        // Xóa giỏ hàng tạm, giao diện sẽ tự vẽ lại thông qua bộ lắng nghe Real-time
                         selectedCellsList.clear();
                         updateQuickBookingBar();
                         Toast.makeText(this, "Hệ thống đã cập nhật lịch đặt sân!", Toast.LENGTH_SHORT).show();
@@ -107,7 +106,6 @@ public class CourtListActivity extends AppCompatActivity {
             btnBack.setOnClickListener(v -> finish());
         }
 
-        // Lấy ngày hiện tại hệ thống đổ lên Bộ lọc
         java.util.Calendar calendar = java.util.Calendar.getInstance();
         java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault());
         String currentDate = dateFormat.format(calendar.getTime()) + " 📅";
@@ -116,36 +114,31 @@ public class CourtListActivity extends AppCompatActivity {
             java.text.SimpleDateFormat labelFormat = new java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault());
             tvDateLabel.setText("Ngày\n" + labelFormat.format(calendar.getTime()));
         }
-        // Đóng sự kiện chọn ngày để mở DatePickerDialog
-        tvFilterDate.setOnClickListener(v -> showDatePicker());
 
-        // Xử lý chỉnh kích thước ô lưới
+        tvFilterDate.setOnClickListener(v -> showDatePicker());
         tvFilterCellWidth.setOnClickListener(v -> showCellWidthDialog());
 
-        // Khởi tạo khung hình trống ban đầu trước khi kích hoạt lắng nghe Firebase
         initEmptyCourts();
         updateTimelineView();
 
-        // Bắt đầu lắng nghe dữ liệu Firestore real-time theo ngày hiện tại
         listenToFirestoreBookings(currentDate);
     }
 
-    // Khởi tạo lưới trống ban đầu cho 4 sân quản lý
     private void initEmptyCourts() {
         courtRowList.clear();
-        String[] danhSachSan = {"Sân 1", "Sân 2", "Sân 3", "Sân 4"};
-        for (String tenSan : danhSachSan) {
+        for (int i = 0; i < idTinh.length; i++) {
+            String idSanFirestore = idTinh[i];
+            String tenHienThi = tenTinh[i];
+
             List<TimeCell> cells = new ArrayList<>();
             for (String slot : timeSlots) {
-                cells.add(new TimeCell(slot, "Trống", "", ""));
+                cells.add(new TimeCell(slot, "Trống", "", idSanFirestore));
             }
-            courtRowList.add(new CourtRow(tenSan, cells));
+            courtRowList.add(new CourtRow(tenHienThi, cells));
         }
     }
 
-    // HÀM LẮNG NGHE REAL-TIME TỪ FIRESTORE THEO ĐỊNH DẠNG MỚI
     private void listenToFirestoreBookings(String targetDate) {
-        // Chuyển "25/05/2026 📅" -> "2026-05-25" để khớp cấu trúc query
         String cleanDate = targetDate.replace(" 📅", "").trim();
         if (cleanDate.contains("/")) {
             String[] parts = cleanDate.split("/");
@@ -156,60 +149,65 @@ public class CourtListActivity extends AppCompatActivity {
 
         initEmptyCourts();
 
-        firestoreListener = db.collection("bookings")
+        firestoreListener = db.collection("Booking")
                 .whereEqualTo("date", cleanDate)
                 .whereEqualTo("status", "confirm")
                 .addSnapshotListener((snapshots, e) -> {
-                    // CẢI TIẾN AN TOÀN: Nếu Firebase trả về lỗi (Ví dụ: DEVELOPER_ERROR do sai SHA-1)
-                    // Ứng dụng sẽ không bị lỗi logic ngầm dẫn đến treo hoặc out màn hình.
                     if (e != null) {
                         android.util.Log.e("FirestoreError", "Lỗi kết nối Firebase: " + e.getMessage());
-
-                        // Hiển thị thông báo lỗi cụ thể lên giao diện thay vì im lặng hoặc crash
-                        TextView tvStatus = findViewById(R.id.tvStatus);
-                        if (tvStatus != null) {
-                            tvStatus.setText("Lỗi kết nối Firebase (Sai SHA-1/Cấu hình)!");
-                            tvStatus.setTextColor(android.graphics.Color.RED);
-                        }
-
-                        Toast.makeText(CourtListActivity.this, "Không thể tải dữ liệu sân từ hệ thống!", Toast.LENGTH_LONG).show();
-                        return; // Thoát hàm an toàn
+                        return;
                     }
 
                     if (snapshots == null) return;
 
-                    // Khởi tạo lại lưới trống sạch sẽ trước khi đè dữ liệu mới cập nhật về
+                    // Làm sạch lưới cục bộ trước khi đổ dữ liệu Firebase
                     initEmptyCourts();
 
                     for (com.google.firebase.firestore.QueryDocumentSnapshot doc : snapshots) {
                         String bookingID = doc.getString("bookingID");
-                        String courtID = doc.getString("courtID");     // e.g. "Sân 1"
-                        String starTime = doc.getString("starTime");   // e.g. "17:00"
-                        String endTime = doc.getString("endTime");       // e.g. "19:00"
-                        String userID = doc.getString("UserID");         // Tên khách đặt
+                        String courtID = doc.getString("courtID");
+                        String startTime = doc.getString("startTime");
+                        String endTime = doc.getString("endTime");
+                        String userID = doc.getString("UserID");
 
-                        int bStart = convertTimeToMinutes(starTime);
+                        String customerPhone = doc.getString("phoneNumber");
+                        if (customerPhone == null) customerPhone = "N/A";
+
+                        if (courtID == null || startTime == null || endTime == null) continue;
+
+                        int bStart = convertTimeToMinutes(startTime);
                         int bEnd = convertTimeToMinutes(endTime);
 
+                        String targetCourtName = "";
+                        for (int i = 0; i < idTinh.length; i++) {
+                            if (idTinh[i].equals(courtID)) {
+                                targetCourtName = tenTinh[i];
+                                break;
+                            }
+                        }
+
                         for (CourtRow row : courtRowList) {
-                            if (row.getCourtName().equals(courtID)) {
+                            if (row.getCourtName().equals(targetCourtName)) {
                                 for (TimeCell cell : row.getTimeCells()) {
                                     String[] cellParts = cell.getTimeLabel().split(" - ");
                                     int cellStart = convertTimeToMinutes(cellParts[0]);
                                     int cellEnd = convertTimeToMinutes(cellParts[1]);
 
-                                    // Nếu ô nhỏ nằm trọn trong khoảng starTime -> endTime của phiếu đặt
                                     if (cellStart >= bStart && cellEnd <= bEnd) {
                                         cell.setStatus("Lịch ngày");
-                                        cell.setCustomerName(userID);     // Đổ tên người đặt
-                                        cell.setPhoneNumber(bookingID);   // Găm mã bookingID vào biến ĐT để phục vụ xử lý Hủy
+                                        // Gộp thông tin
+                                        cell.setCustomerName(userID + "\n" + customerPhone);
+                                        cell.setPhoneNumber(bookingID);
                                     }
                                 }
                             }
                         }
                     }
+
+                    // 🛠️ ĐÃ SỬA: Thay vì gọi notify thông thường, ta làm mới view timeline hoàn toàn
+                    // để ép các Adapter con (TimeCellAdapter) khởi tạo lại với tập dữ liệu mới gộp này.
                     if (timelineAdapter != null) {
-                        timelineAdapter.notifyDataSetChanged();
+                        updateTimelineView(); // Gọi lại hàm build view để nạp mới dữ liệu cho các RecyclerView con
                     }
                 });
     }
@@ -228,15 +226,15 @@ public class CourtListActivity extends AppCompatActivity {
 
             timelineAdapter.setOnCellClickListener((String courtName, TimeCell cell) -> {
 
-                // --- CHỨC NĂNG DÀNH RIÊNG CHO ADMIN: HỦY SÂN THEO BOOKING ID ---
                 if ("Lịch ngày".equals(cell.getStatus())) {
-                    String bID = cell.getPhoneNumber(); // Lấy mã bookingID đã ghim
+                    String bID = cell.getPhoneNumber();
 
                     new android.app.AlertDialog.Builder(CourtListActivity.this)
                             .setTitle("Xác nhận hủy lịch đặt")
-                            .setMessage("Hủy toàn bộ lượt đặt sân này của khách: " + cell.getCustomerName() + "?")
+                            // 🛠️ ĐÃ SỬA: Hiển thị thông tin xuống dòng đẹp đẽ khi Admin bấm xóa
+                            .setMessage("Hủy toàn bộ lượt đặt sân này của:\n" + cell.getCustomerName() + "?")
                             .setPositiveButton("Xóa lịch", (dialog, which) -> {
-                                db.collection("bookings").document(bID)
+                                db.collection("Booking").document(bID)
                                         .delete()
                                         .addOnSuccessListener(aVoid -> {
                                             Toast.makeText(CourtListActivity.this, "Đã hủy lịch đặt thành công!", Toast.LENGTH_SHORT).show();
@@ -255,21 +253,26 @@ public class CourtListActivity extends AppCompatActivity {
                     return;
                 }
 
-                // Xử lý chọn/hủy chọn các ô trống màu cam
                 if (cell.isSelected()) {
                     cell.setSelected(false);
-                    cell.setCustomerName("");
+
+                    for (int i = 0; i < tenTinh.length; i++) {
+                        if (tenTinh[i].equals(courtName)) {
+                            cell.setPhoneNumber(idTinh[i]);
+                            break;
+                        }
+                    }
 
                     for (int i = 0; i < selectedCellsList.size(); i++) {
                         TimeCell selected = selectedCellsList.get(i);
-                        if (selected.getTimeLabel().equals(cell.getTimeLabel()) && selected.getCustomerName().equals(cell.getCustomerName())) {
+                        if (selected.getTimeLabel().equals(cell.getTimeLabel()) && courtName.equals(selected.getCustomerName())) {
                             selectedCellsList.remove(i);
                             break;
                         }
                     }
                 } else {
                     cell.setSelected(true);
-                    cell.setCustomerName(courtName); // Ghim tạm tên sân vào ô chọn
+                    cell.setCustomerName(courtName);
                     selectedCellsList.add(cell);
                 }
 
@@ -347,7 +350,6 @@ public class CourtListActivity extends AppCompatActivity {
                         tvDateLabel.setText("Ngày\n" + String.format("%02d/%02d", selectedDay, selectedMonth + 1));
                     }
 
-                    // Kích hoạt lắng nghe dữ liệu từ Firebase theo ngày mới chọn
                     listenToFirestoreBookings(tvFilterDate.getText().toString());
                 }, year, month, day);
         datePickerDialog.show();
@@ -376,16 +378,10 @@ public class CourtListActivity extends AppCompatActivity {
 
     private int calculatePriceForSlot(String timeSlot) {
         if (timeSlot == null || timeSlot.isEmpty()) return 0;
-        String startHourStr = timeSlot.substring(0, 2);
-        int startHour = Integer.parseInt(startHourStr);
-
-        if (startHour >= 5 && startHour < 12) {
-            return 65000;
-        } else if (startHour >= 12 && startHour < 17) {
-            return 70000;
-        } else {
-            return 80000;
-        }
+        try {
+            int startHour = Integer.parseInt(timeSlot.substring(0, 2));
+            return (startHour >= 5 && startHour < 12) ? 65000 : (startHour >= 12 && startHour < 17) ? 70000 : 80000;
+        } catch (Exception e) { return 0; }
     }
 
     private void updateQuickBookingBar() {

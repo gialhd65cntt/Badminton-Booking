@@ -25,7 +25,7 @@ public class TimeCell implements Serializable {
         return timeLabel;
     }
 
-    public void setCustomerName(String courtName) {
+    public void setCustomerName(String courtName) {this.customerName = customerName;
     }
 
     public void setStatus(String status) {

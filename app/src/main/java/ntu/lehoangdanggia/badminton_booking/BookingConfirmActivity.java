@@ -7,9 +7,10 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.WriteBatch;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -47,58 +48,49 @@ public class BookingConfirmActivity extends AppCompatActivity {
             if (phone.isEmpty()) { edtPhoneNumber.setError("Vui lòng nhập SĐT!"); return; }
             if (chosenSlots == null || chosenSlots.isEmpty()) return;
 
-            // --- TÌM GIỜ BẮT ĐẦU VÀ GIỜ KẾT THÚC TỪ CÁC CA ĐÃ CHỌN ---
-            ArrayList<String> startTimes = new ArrayList<>();
-            ArrayList<String> endTimes = new ArrayList<>();
-            int tongTien = 0;
-            String tenSan = chosenSlots.get(0).getCustomerName(); // Tên sân ghim tạm
-
-            for (TimeCell cell : chosenSlots) {
-                // Chuỗi gốc: "17:00 - 17:30" -> Cắt ra start: "17:00", end: "17:30"
-                String[] parts = cell.getTimeLabel().split(" - ");
-                startTimes.add(parts[0]);
-                endTimes.add(parts[1]);
-                tongTien += calculatePriceForSlot(cell.getTimeLabel());
-            }
-
-            // Sắp xếp để lấy mốc nhỏ nhất và lớn nhất
-            Collections.sort(startTimes);
-            Collections.sort(endTimes);
-            String starTimeStr = startTimes.get(0);          // Ví dụ: "17:00"
-            String endTimeStr = endTimes.get(endTimes.size() - 1); // Ví dụ: "19:00"
-
-            // Chuẩn hóa định dạng ngày từ "23/05/2026 📅" thành "2026-05-23" cho khớp DB của bạn
             String cleanDate = bookingDate.replace(" 📅", "").trim();
             if (cleanDate.contains("/")) {
                 String[] dParts = cleanDate.split("/");
-                cleanDate = dParts[2] + "-" + dParts[1] + "-" + dParts[0]; // Chuyển thành yyyy-MM-dd
+                cleanDate = dParts[2] + "-" + dParts[1] + "-" + dParts[0];
             }
 
-            // Tạo bookingID ngẫu nhiên ngẫu hứng hoặc dùng timestamp
-            String bookingID = "BK" + System.currentTimeMillis() / 1000;
+            String groupBookingID = "BK" + System.currentTimeMillis() / 1000;
+            WriteBatch batch = db.batch();
 
-            // Đóng gói đúng các trường bạn yêu cầu lên Firestore
-            Map<String, Object> bookingMap = new HashMap<>();
-            bookingMap.put("bookingID", bookingID);
-            bookingMap.put("UserID", name); // Lưu tạm tên người đặt vào trường UserID của bạn
-            bookingMap.put("courtID", tenSan); // ID sân hoặc Tên sân (e.g., "Sân 1")
-            bookingMap.put("date", cleanDate);
-            bookingMap.put("starTime", starTimeStr);
-            bookingMap.put("endTime", endTimeStr);
-            bookingMap.put("status", "confirm");
-            bookingMap.put("totalPrice", tongTien);
-            // Bạn có thể lưu thêm SĐT vào map nếu muốn: bookingMap.put("phoneNumber", phone);
+            for (int i = 0; i < chosenSlots.size(); i++) {
+                TimeCell cell = chosenSlots.get(i);
+                String[] parts = cell.getTimeLabel().split(" - ");
+                String slotStartTime = parts[0];
+                String slotEndTime = parts[1];
+                int slotPrice = calculatePriceForSlot(cell.getTimeLabel());
+                String individualCourtID = cell.getPhoneNumber();
 
-            // Đẩy lên Firestore
-            db.collection("bookings").document(bookingID)
-                    .set(bookingMap)
+                String individualDocID = groupBookingID + "_" + i;
+
+                Map<String, Object> bookingMap = new HashMap<>();
+                bookingMap.put("bookingID", individualDocID);
+                bookingMap.put("UserID", name);
+                // 🛠️ THÊM MỚI: Lưu SĐT khách hàng vào trường phoneNumber trên Firestore
+                bookingMap.put("phoneNumber", phone);
+                bookingMap.put("courtID", individualCourtID);
+                bookingMap.put("date", cleanDate);
+                bookingMap.put("startTime", slotStartTime);
+                bookingMap.put("endTime", slotEndTime);
+                bookingMap.put("status", "confirm");
+                bookingMap.put("totalPrice", slotPrice);
+
+                DocumentReference docRef = db.collection("Booking").document(individualDocID);
+                batch.set(docRef, bookingMap);
+            }
+
+            batch.commit()
                     .addOnSuccessListener(aVoid -> {
-                        Toast.makeText(BookingConfirmActivity.this, "Đã lưu phiếu đặt " + bookingID, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(BookingConfirmActivity.this, "Đặt cụm sân thành công!", Toast.LENGTH_SHORT).show();
                         setResult(RESULT_OK);
                         finish();
                     })
                     .addOnFailureListener(e -> {
-                        Toast.makeText(BookingConfirmActivity.this, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(BookingConfirmActivity.this, "Lỗi hệ thống lưu lịch: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     });
         });
     }

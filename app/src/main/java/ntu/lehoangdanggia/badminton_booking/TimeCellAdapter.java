@@ -43,44 +43,52 @@ public class TimeCellAdapter extends RecyclerView.Adapter<TimeCellAdapter.CellVi
     @Override
     public void onBindViewHolder(@NonNull CellViewHolder holder, int position) {
         TimeCell cell = cellList.get(position);
+
         holder.itemView.setOnClickListener(v -> {
             if (cellClickListener != null) {
-                cellClickListener.onCellClick(cell); // Kích hoạt callback truyền đi
+                cellClickListener.onCellClick(cell);
             }
         });
 
-        // Đổi màu nền ô theo trạng thái giống ảnh mẫu
+        // 🛠️ ĐÃ SỬA: Bỏ xóa text tvStatus, chỉ cần ẩn layout thông tin đi khi ô trống
+        holder.layoutBookedInfo.setVisibility(View.GONE);
+
         if ("Trống".equals(cell.getStatus())) {
             holder.itemView.setBackgroundColor(Color.WHITE);
-            holder.tvStatus.setText(""); // Ô trống thì để trống chữ hoặc hiện chữ "Trống" tùy bạn
         } else {
-            // Nếu là "Lịch ngày" hoặc "Cố định" -> Đổi màu nền tương ứng
+            // 1. Đổi màu nền theo trạng thái hệ thống
             if ("Cố định".equals(cell.getStatus())) {
                 holder.itemView.setBackgroundColor(Color.parseColor("#38BDF8")); // Xanh dương
             } else {
                 holder.itemView.setBackgroundColor(Color.parseColor("#10B981")); // Xanh lá đặt lịch
             }
 
-            // HIỂN THỊ TÊN VÀ SĐT TRỰC TIẾP LÊN Ô CHO ADMIN XEM
-            String displayInfo = cell.getCustomerName() + "\n" + cell.getPhoneNumber();
-            holder.tvStatus.setText(displayInfo);
-            holder.tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 10);
+            // 2. Hiện thị layout chứa thông tin khách hàng lên
+            holder.layoutBookedInfo.setVisibility(View.VISIBLE);
 
+            // 3. Tách chuỗi Tên và SĐT dựa vào dấu xuống dòng "\n"
+            String rawInfo = cell.getCustomerName();
+            if (rawInfo != null && rawInfo.contains("\n")) {
+                String[] parts = rawInfo.split("\n");
+                holder.tvCustomerName.setText(parts[0]); // Đổ vào ô tên công khai
+                holder.tvPhone.setText(parts[1]);        // Đổ vào ô SĐT công khai
+            } else {
+                holder.tvCustomerName.setText(rawInfo);
+                holder.tvPhone.setText("");
+            }
         }
 
+        // Nếu ô đang được Admin chạm chọn (Màu cam)
         if (cell.isSelected()) {
-            holder.itemView.setBackgroundColor(Color.parseColor("#F59E0B")); // Màu cam đang chọn
+            holder.itemView.setBackgroundColor(Color.parseColor("#F59E0B"));
         }
-
-        // Giữ nguyên sự kiện holder.itemView.setOnClickListener...
     }
 
     @Override
     public int getItemCount() { return cellList.size(); }
 
     public static class CellViewHolder extends RecyclerView.ViewHolder {
-        TextView tvStatus;
-
+        // 🛠️ ĐÃ SỬA: Loại bỏ thuộc tính tvStatus dư thừa khỏi ViewHolder
         LinearLayout layoutBookedInfo;
         TextView tvCustomerName, tvPhone;
 
@@ -89,7 +97,6 @@ public class TimeCellAdapter extends RecyclerView.Adapter<TimeCellAdapter.CellVi
             layoutBookedInfo = itemView.findViewById(R.id.layoutBookedInfo);
             tvCustomerName = itemView.findViewById(R.id.tvCellCustomerName);
             tvPhone = itemView.findViewById(R.id.tvCellPhone);
-            tvStatus = itemView.findViewById(R.id.tvStatus);
         }
     }
 }
