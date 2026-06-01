@@ -50,31 +50,50 @@ public class TimeCellAdapter extends RecyclerView.Adapter<TimeCellAdapter.CellVi
             }
         });
 
-        // 🛠️ ĐÃ SỬA: Bỏ xóa text tvStatus, chỉ cần ẩn layout thông tin đi khi ô trống
+        // 1. Reset sạch giao diện của ô về mặc định ban đầu để tránh lỗi lưu đệm Holder cũ
         holder.layoutBookedInfo.setVisibility(View.GONE);
+        holder.tvCustomerName.setText("");
+        holder.tvPhone.setText("");
 
+        // 2. Kiểm tra trạng thái để nhuộm màu nền
         if ("Trống".equals(cell.getStatus())) {
             holder.itemView.setBackgroundColor(Color.WHITE);
         } else {
-            // 1. Đổi màu nền theo trạng thái hệ thống
+            // Tô màu nền dựa theo trạng thái đặt
             if ("Cố định".equals(cell.getStatus())) {
                 holder.itemView.setBackgroundColor(Color.parseColor("#38BDF8")); // Xanh dương
             } else {
-                holder.itemView.setBackgroundColor(Color.parseColor("#10B981")); // Xanh lá đặt lịch
+                holder.itemView.setBackgroundColor(Color.parseColor("#10B981")); // Xanh lá ("Lịch ngày")
             }
 
-            // 2. Hiện thị layout chứa thông tin khách hàng lên
+            // 3. XỬ LÝ HIỂN THỊ CHỮ TRẮNG (BẮT BUỘC HIỆN)
+            String rawInfo = cell.getCustomerName();
+
+            // Log ra Logcat để bạn dễ giám sát tiến trình đổ dữ liệu
+            android.util.Log.d("HIEN_THI_CHU", "Ô " + cell.getTimeLabel() + " có chuỗi thông tin: '" + rawInfo + "'");
+
+            // Bật layout chứa chữ lên
             holder.layoutBookedInfo.setVisibility(View.VISIBLE);
 
-            // 3. Tách chuỗi Tên và SĐT dựa vào dấu xuống dòng "\n"
-            String rawInfo = cell.getCustomerName();
-            if (rawInfo != null && rawInfo.contains("\n")) {
-                String[] parts = rawInfo.split("\n");
-                holder.tvCustomerName.setText(parts[0]); // Đổ vào ô tên công khai
-                holder.tvPhone.setText(parts[1]);        // Đổ vào ô SĐT công khai
+            if (rawInfo != null && !rawInfo.trim().isEmpty()) {
+                if (rawInfo.contains("\n")) {
+                    String[] parts = rawInfo.split("\n");
+
+                    // Phòng hờ chuỗi null ma từ Firebase
+                    String name = (parts[0] == null || "null".equals(parts[0])) ? "Khách za" : parts[0];
+                    String phone = (parts[1] == null || "null".equals(parts[1])) ? "" : parts[1];
+
+                    holder.tvCustomerName.setText(name);
+                    holder.tvPhone.setText(phone);
+                } else {
+                    // Nếu chuỗi không có dấu xuống dòng, hiện thẳng toàn bộ chuỗi lên ô tên
+                    holder.tvCustomerName.setText(rawInfo);
+                    holder.tvPhone.setText("");
+                }
             } else {
-                holder.tvCustomerName.setText(rawInfo);
-                holder.tvPhone.setText("");
+                // Cứu nguy: Nếu dữ liệu bị rỗng ma, vẫn ép hiện chữ để admin biết ô này đã có chủ
+                holder.tvCustomerName.setText("Đã đặt");
+                holder.tvPhone.setText(cell.getPhoneNumber() != null ? "Hệ thống" : "");
             }
         }
 

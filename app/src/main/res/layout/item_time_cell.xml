@@ -1,8 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/layoutCellContainer"
-    android:layout_width="80dp"
-    android:layout_height="match_parent"
+    android:layout_width="match_parent" android:layout_height="match_parent"
     android:background="@android:color/white">
 
     <View
@@ -30,23 +28,20 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="Khoa"
+            android:text="Tên Khách"
             android:textColor="#FFFFFF"
-            android:textSize="11sp"
+            android:textSize="12sp"
             android:textStyle="bold"
             android:ellipsize="end"
-            android:maxLines="1"/>
-
-        <TextView
-            android:id="@+id/tvCellPhone"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="03662..."
-            android:textColor="#FFFFFF"
-            android:textSize="9sp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:layout_marginTop="2dp"/>
-    </LinearLayout>
+            android:maxLines="1" /> <TextView
+        android:id="@+id/tvCellPhone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="SĐT"
+        android:textColor="#E0F2FE"
+        android:textSize="10sp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:layout_marginTop="1dp"/> </LinearLayout>
 </FrameLayout>

@@ -139,6 +139,7 @@ public class CourtListActivity extends AppCompatActivity {
     }
 
     private void listenToFirestoreBookings(String targetDate) {
+        // 1. Chuẩn hóa ngày về định dạng YYYY-MM-DD để truy vấn Firebase
         String cleanDate = targetDate.replace(" 📅", "").trim();
         if (cleanDate.contains("/")) {
             String[] parts = cleanDate.split("/");
@@ -146,8 +147,6 @@ public class CourtListActivity extends AppCompatActivity {
         }
 
         if (firestoreListener != null) firestoreListener.remove();
-
-        initEmptyCourts();
 
         firestoreListener = db.collection("Booking")
                 .whereEqualTo("date", cleanDate)
@@ -160,54 +159,68 @@ public class CourtListActivity extends AppCompatActivity {
 
                     if (snapshots == null) return;
 
-                    // Làm sạch lưới cục bộ trước khi đổ dữ liệu Firebase
-                    initEmptyCourts();
+                    // 🛠️ GIẢI PHÁP CHÍ MẠNG: Khởi tạo một lưới sạch hoàn toàn mới trong bộ nhớ đệm Local
+                    List<CourtRow> localCourtRows = new ArrayList<>();
+                    for (int i = 0; i < idTinh.length; i++) {
+                        String idSanFirestore = idTinh[i];
+                        String tenHienThi = tenTinh[i];
 
+                        List<TimeCell> cells = new ArrayList<>();
+                        for (String slot : timeSlots) {
+                            cells.add(new TimeCell(slot, "Trống", "", ""));
+                        }
+                        localCourtRows.add(new CourtRow(tenHienThi, cells));
+                    }
+
+                    // 2. Đổ dữ liệu từ Firestore vào lưới đệm Local vừa tạo
                     for (com.google.firebase.firestore.QueryDocumentSnapshot doc : snapshots) {
                         String bookingID = doc.getString("bookingID");
                         String courtID = doc.getString("courtID");
                         String startTime = doc.getString("startTime");
                         String endTime = doc.getString("endTime");
                         String userID = doc.getString("UserID");
-
                         String customerPhone = doc.getString("phoneNumber");
-                        if (customerPhone == null) customerPhone = "N/A";
+
+                        if (customerPhone == null || customerPhone.isEmpty()) customerPhone = "N/A";
+                        if (userID == null || userID.isEmpty()) userID = "Khách vãng lai";
 
                         if (courtID == null || startTime == null || endTime == null) continue;
 
-                        int bStart = convertTimeToMinutes(startTime);
-                        int bEnd = convertTimeToMinutes(endTime);
+                        int bStart = convertTimeToMinutes(startTime.trim());
+                        int bEnd = convertTimeToMinutes(endTime.trim());
 
-                        String targetCourtName = "";
+                        // Tìm hàng sân trong lưới local khớp với courtID
                         for (int i = 0; i < idTinh.length; i++) {
                             if (idTinh[i].equals(courtID)) {
-                                targetCourtName = tenTinh[i];
-                                break;
-                            }
-                        }
+                                CourtRow row = localCourtRows.get(i);
 
-                        for (CourtRow row : courtRowList) {
-                            if (row.getCourtName().equals(targetCourtName)) {
                                 for (TimeCell cell : row.getTimeCells()) {
-                                    String[] cellParts = cell.getTimeLabel().split(" - ");
-                                    int cellStart = convertTimeToMinutes(cellParts[0]);
-                                    int cellEnd = convertTimeToMinutes(cellParts[1]);
+                                    // Sử dụng biểu thức chính quy để cắt chuỗi an toàn, chấp nhận cả có hoặc không có khoảng trắng xung quanh dấu gạch ngang
+                                    String[] cellParts = cell.getTimeLabel().split("\\s*-\\s*");
+                                    if (cellParts.length < 2) continue;
 
+                                    int cellStart = convertTimeToMinutes(cellParts[0].trim());
+                                    int cellEnd = convertTimeToMinutes(cellParts[1].trim());
+
+                                    // Kiểm tra nếu ca giờ nằm trong khoảng thời gian đặt
                                     if (cellStart >= bStart && cellEnd <= bEnd) {
                                         cell.setStatus("Lịch ngày");
-                                        // Gộp thông tin
-                                        cell.setCustomerName(userID + "\n" + customerPhone);
+                                        cell.setCustomerName(userID.trim() + "\n" + customerPhone.trim());
                                         cell.setPhoneNumber(bookingID);
                                     }
                                 }
+                                break;
                             }
                         }
                     }
 
-                    // 🛠️ ĐÃ SỬA: Thay vì gọi notify thông thường, ta làm mới view timeline hoàn toàn
-                    // để ép các Adapter con (TimeCellAdapter) khởi tạo lại với tập dữ liệu mới gộp này.
+                    // 🛠️ GIẢI PHÁP CHÍ MẠNG: Xóa sạch lưới cũ, nạp toàn bộ lưới local sạch vào biến toàn cục
+                    courtRowList.clear();
+                    courtRowList.addAll(localCourtRows);
+
+                    // Ép Adapter nhận danh sách mới và vẽ lại toàn bộ giao diện từ đầu
                     if (timelineAdapter != null) {
-                        updateTimelineView(); // Gọi lại hàm build view để nạp mới dữ liệu cho các RecyclerView con
+                        timelineAdapter.notifyDataSetChanged();
                     }
                 });
     }
@@ -231,7 +244,6 @@ public class CourtListActivity extends AppCompatActivity {
 
                     new android.app.AlertDialog.Builder(CourtListActivity.this)
                             .setTitle("Xác nhận hủy lịch đặt")
-                            // 🛠️ ĐÃ SỬA: Hiển thị thông tin xuống dòng đẹp đẽ khi Admin bấm xóa
                             .setMessage("Hủy toàn bộ lượt đặt sân này của:\n" + cell.getCustomerName() + "?")
                             .setPositiveButton("Xóa lịch", (dialog, which) -> {
                                 db.collection("Booking").document(bID)
@@ -256,12 +268,8 @@ public class CourtListActivity extends AppCompatActivity {
                 if (cell.isSelected()) {
                     cell.setSelected(false);
 
-                    for (int i = 0; i < tenTinh.length; i++) {
-                        if (tenTinh[i].equals(courtName)) {
-                            cell.setPhoneNumber(idTinh[i]);
-                            break;
-                        }
-                    }
+                    // Khi bỏ chọn, trả về giá trị mặc định sạch
+                    cell.setPhoneNumber("");
 
                     for (int i = 0; i < selectedCellsList.size(); i++) {
                         TimeCell selected = selectedCellsList.get(i);
@@ -272,7 +280,16 @@ public class CourtListActivity extends AppCompatActivity {
                     }
                 } else {
                     cell.setSelected(true);
-                    cell.setCustomerName(courtName);
+                    cell.setCustomerName(courtName); // Lưu tên tạm thời ("Sân 1") để BookingConfirm hiển thị giao diện
+
+                    // 🛠️ ĐÃ SỬA: Tìm và nạp đúng mã ID Firestore của sân vào phoneNumber của ô được click
+                    for (int i = 0; i < tenTinh.length; i++) {
+                        if (tenTinh[i].equals(courtName)) {
+                            cell.setPhoneNumber(idTinh[i]); // Lưu mã băm (VD: "7o8mrirBibMAop6nig3K") để BookingConfirm bốc ra làm courtID
+                            break;
+                        }
+                    }
+
                     selectedCellsList.add(cell);
                 }
 
