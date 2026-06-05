@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Badminton-Booking</string>
+    <string-array name="revenue_filter_options">
+        <item>Xem theo Ngày</item>
+        <item>Xem theo Tuần</item>
+        <item>Xem theo Tháng</item>
+        <item>Xem theo Năm</item>
+    </string-array>
 </resources>

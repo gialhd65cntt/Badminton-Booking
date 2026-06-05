@@ -430,14 +430,14 @@
             android:layout_marginEnd="8dp"/>
 
         <Button
-
+            android:id="@+id/btnMainMonthlyBooking"
             android:layout_width="wrap_content"
 
             android:layout_height="wrap_content"
 
             android:text="📅 Đặt lịch"
 
-            android:backgroundTint="#9CA3AF" />
+            android:backgroundTint="#15803D" />
 
     </LinearLayout>
 

@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@android:color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <View
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:background="#CBD5E1"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📅 Đặt lịch tháng thông minh"
+            android:textColor="#15803D"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="4dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="👤 Thông tin khách hàng đặt lịch:"
+                    android:textColor="#475569"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="6dp"/>
+
+                <EditText
+                    android:id="@+id/edtAdminCustomerName"
+                    android:layout_width="match_parent"
+                    android:layout_height="45dp"
+                    android:background="@android:drawable/edit_text"
+                    android:hint="Nhập tên khách hàng (Ví dụ: Anh Thành, CLB T7...)"
+                    android:inputType="textPersonName"
+                    android:paddingHorizontal="10dp"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp"/>
+
+                <EditText
+                    android:id="@+id/edtAdminCustomerPhone"
+                    android:layout_width="match_parent"
+                    android:layout_height="45dp"
+                    android:background="@android:drawable/edit_text"
+                    android:hint="Nhập số điện thoại khách (Không bắt buộc)"
+                    android:inputType="phone"
+                    android:paddingHorizontal="10dp"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="16dp"/>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E2E8F0"
+                    android:layout_marginBottom="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Từ ngày:" android:textColor="#475569" android:textStyle="bold" android:textSize="13sp"/>
+                <TextView android:id="@+id/tvDialogStartDate" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@android:drawable/edit_text" android:padding="10dp" android:text="Chọn ngày 📅" android:textColor="#0F172A" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="4dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Đến ngày:" android:textColor="#475569" android:textStyle="bold" android:textSize="13sp"/>
+                <TextView android:id="@+id/tvDialogEndDate" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@android:drawable/edit_text" android:padding="10dp" android:text="Chọn ngày 📅" android:textColor="#0F172A" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lặp lại vào các Thứ:" android:textColor="#475569" android:textStyle="bold" android:textSize="13sp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="7" android:layout_marginTop="4dp" android:layout_marginBottom="12dp">
+            <CheckBox android:id="@+id/cbT2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="T2" android:textSize="10sp" android:padding="0dp" android:buttonTint="#15803D"/>
+            <CheckBox android:id="@+id/cbT3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="T3" android:textSize="10sp" android:padding="0dp" android:buttonTint="#15803D"/>
+            <CheckBox android:id="@+id/cbT4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="T4" android:textSize="10sp" android:padding="0dp" android:buttonTint="#15803D"/>
+            <CheckBox android:id="@+id/cbT5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="T5" android:textSize="10sp" android:padding="0dp" android:buttonTint="#15803D"/>
+            <CheckBox android:id="@+id/cbT6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="T6" android:textSize="10sp" android:padding="0dp" android:buttonTint="#15803D"/>
+            <CheckBox android:id="@+id/cbT7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="T7" android:textSize="10sp" android:padding="0dp" android:buttonTint="#15803D"/>
+            <CheckBox android:id="@+id/cbCN" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="CN" android:textSize="10sp" android:padding="0dp" android:buttonTint="#15803D"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="4dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Từ giờ:" android:textColor="#475569" android:textStyle="bold" android:textSize="13sp"/>
+                <Spinner android:id="@+id/spStartTime" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="4dp" android:background="@android:drawable/btn_dropdown"/>
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="4dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Đến giờ:" android:textColor="#475569" android:textStyle="bold" android:textSize="13sp"/>
+                <Spinner android:id="@+id/spEndTime" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="4dp" android:background="@android:drawable/btn_dropdown"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnCheckAvailableCourts"
+            android:layout_width="match_parent"
+            android:layout_height="45dp"
+            android:text="🔍 KIỂM TRA SÂN TRỐNG"
+            android:backgroundTint="#F59E0B"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:id="@+id/tvAvailableCourtsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🏟️ Danh sách sân trống khả dụng (Bấm để đặt):"
+            android:textColor="#475569"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:visibility="gone"
+            android:layout_marginBottom="8dp"/>
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupCourts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="4dp"
+            app:singleSelection="true"/>
+
+    </LinearLayout>
+</ScrollView>

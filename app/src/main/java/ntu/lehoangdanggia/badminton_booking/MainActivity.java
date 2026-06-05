@@ -108,9 +108,11 @@ public class MainActivity extends AppCompatActivity {
         );
 
         // 4. Doanh thu & lợi nhuận
-        menuRevenue.setOnClickListener(v ->
-                Toast.makeText(MainActivity.this, "Mở Thống kê Doanh thu", Toast.LENGTH_SHORT).show()
-        );
+        menuRevenue.setOnClickListener(v -> {
+            Toast.makeText(MainActivity.this, "Mở Thống kê Doanh thu", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(MainActivity.this, RevenueActivity.class);
+            startActivity(intent);
+        });
 
         // 5. Quản lý chi nhánh
         menuBranches.setOnClickListener(v ->

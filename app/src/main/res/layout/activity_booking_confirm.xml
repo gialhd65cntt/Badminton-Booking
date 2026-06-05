@@ -1,113 +1,108 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F0FDF4"> <RelativeLayout
-    android:id="@+id/toolbarConfirm"
-    android:layout_width="match_parent"
-    android:layout_height="56dp"
-    android:background="#15803D"
-    android:paddingHorizontal="16dp"
-    app:layout_constraintTop_toTopOf="parent">
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:text="Thông tin đặt sân"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold" />
-</RelativeLayout>
+    android:fillViewport="true"
+    android:background="#FFFFFF">
 
     <LinearLayout
-        android:id="@+id/layoutDetailsCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:background="#FFFFFF"
         android:orientation="vertical"
-        android:padding="16dp"
-        android:elevation="4dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbarConfirm">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Chi tiết lịch đặt:"
-            android:textColor="#166534"
-            android:textStyle="bold"
-            android:textSize="15sp"
-            android:layout_marginBottom="8dp"/>
+        android:padding="16dp">
 
         <TextView
             android:id="@+id/tvBookingDetails"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Danh sách ca đang tải..."
-            android:textColor="#334155"
+            android:textColor="#1E293B"
             android:textSize="14sp"
-            android:lineSpacingExtra="4dp"/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_margin="16dp"
-        android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@id/layoutDetailsCard"
-        app:layout_constraintBottom_toTopOf="@id/btnConfirmBooking">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Họ và tên khách hàng:"
-            android:textColor="#475569"
-            android:textStyle="bold"
-            android:layout_marginBottom="6dp" />
+            android:background="#F1F5F9"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp"/>
 
         <EditText
             android:id="@+id/edtCustomerName"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:background="#FFFFFF"
-            android:hint="Nhập tên người chơi"
-            android:inputType="textPersonName"
-            android:paddingHorizontal="12dp"
-            android:textColor="#1E293B"
-            android:textSize="15sp"
-            android:layout_marginBottom="16dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Số điện thoại liên hệ:"
-            android:textColor="#475569"
-            android:textStyle="bold"
-            android:layout_marginBottom="6dp" />
+            android:hint="Vui lòng nhập tên!"
+            android:layout_marginBottom="8dp"/>
 
         <EditText
             android:id="@+id/edtPhoneNumber"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:background="#FFFFFF"
-            android:hint="Nhập số điện thoại"
+            android:layout_height="wrap_content"
+            android:hint="Vui lòng nhập SĐT!"
             android:inputType="phone"
-            android:paddingHorizontal="12dp"
-            android:textColor="#1E293B"
-            android:textSize="15sp"/>
+            android:layout_marginBottom="16dp"/>
+
+        <LinearLayout
+            android:id="@+id/layoutPaymentQR"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="12dp"
+            android:background="#F8FAFC"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💳 QUÉT MÃ ĐỂ THANH TOÁN ONLINE"
+                android:textStyle="bold"
+                android:textColor="#1E293B"
+                android:textSize="15sp"/>
+
+            <ImageView
+                android:id="@+id/imgVietQR"
+                android:layout_width="180dp"
+                android:layout_height="180dp"
+                android:layout_marginTop="8dp"
+                android:scaleType="fitCenter"/>
+
+            <TextView
+                android:id="@+id/tvQRInstruction"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Giữ nguyên nội dung chuyển khoản khi quét mã"
+                android:textColor="#64748B"
+                android:textSize="11sp"
+                android:gravity="center"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
+            android:padding="8dp"
+            android:background="#F0FDF4"> <Button
+            android:id="@+id/btnSelectBill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📷 Tải ảnh hóa đơn / Bill chuyển khoản"
+            android:backgroundTint="#16A34A"/>
+
+            <ImageView
+                android:id="@+id/imgBillPreview"
+                android:layout_width="120dp"
+                android:layout_height="160dp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                android:scaleType="centerCrop"/>
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnConfirmBooking"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="XÁC NHẬN ĐẶT SÂN &amp; THANH TOÁN"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp"/>
+
     </LinearLayout>
-
-    <Button
-        android:id="@+id/btnConfirmBooking"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_margin="16dp"
-        android:text="XÁC NHẬN ĐẶT SÂN ✔"
-        android:backgroundTint="#15803D"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:textSize="16sp"
-        app:layout_constraintBottom_toBottomOf="parent"/>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

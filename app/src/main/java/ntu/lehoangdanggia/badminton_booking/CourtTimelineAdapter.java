@@ -67,9 +67,9 @@ public class CourtTimelineAdapter extends RecyclerView.Adapter<CourtTimelineAdap
         }
     }
 
+
     @Override
     public void onBindViewHolder(@NonNull RowViewHolder holder, int position) {
-
         CourtRow row = courtRows.get(position);
         holder.tvCourtName.setText(row.getCourtName());
 
@@ -80,21 +80,44 @@ public class CourtTimelineAdapter extends RecyclerView.Adapter<CourtTimelineAdap
                 cellClickListener.onCellClick(row.getCourtName(), cell);
             }
         });
+
+        // 1. TẠM THỜI GỠ bộ lắng nghe cuộn cũ ra để tránh xung đột kéo chéo khi khởi tạo lại lưới
+        if (globalScrollListener != null) {
+            holder.rvTimeCells.removeOnScrollListener(globalScrollListener);
+        }
+
         holder.rvTimeCells.setLayoutManager(new LinearLayoutManager(holder.itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
         holder.rvTimeCells.setAdapter(cellAdapter);
 
-        // Xóa bộ lắng nghe cũ trước khi đăng ký để tránh trùng lặp sự kiện khi cuộn dọc
-        if (globalScrollListener != null) {
-            holder.rvTimeCells.removeOnScrollListener(globalScrollListener);
-            holder.rvTimeCells.addOnScrollListener(globalScrollListener);
+        // 2. Ép cuộn theo thanh tiêu đề giờ (Xử lý biệt lập, an toàn)
+        if (holder.itemView.getContext() instanceof CourtListActivity) {
+            CourtListActivity activity = (CourtListActivity) holder.itemView.getContext();
+            android.widget.HorizontalScrollView headerScroll = activity.findViewById(R.id.headerScroll);
+            if (headerScroll != null) {
+                final int currentScrollX = headerScroll.getScrollX();
+
+                holder.rvTimeCells.post(() -> {
+                    // Tạm gỡ listener lần nữa bên trong block chạy sau để chắc chắn không bị kích hoạt ngược
+                    if (globalScrollListener != null) {
+                        holder.rvTimeCells.removeOnScrollListener(globalScrollListener);
+                    }
+
+                    // Cuộn về đúng tọa độ của thanh giờ trên toolbar
+                    holder.rvTimeCells.scrollTo(currentScrollX, 0);
+
+                    // 3. CHỈ KHI CUỘN XONG XUÔI: Mới gắn lại Listener cuộn để người dùng vuốt tay bình thường
+                    if (globalScrollListener != null) {
+                        holder.rvTimeCells.addOnScrollListener(globalScrollListener);
+                    }
+                });
+            }
         }
 
-        // Lưu RecyclerView này vào danh sách quản lý
+        // Lưu RecyclerView này vào danh sách quản lý nếu chưa có
         if (!registeredScrollViews.contains(holder.rvTimeCells)) {
             registeredScrollViews.add(holder.rvTimeCells);
         }
     }
-
     @Override
     public int getItemCount() {
         return courtRows != null ? courtRows.size() : 0;
