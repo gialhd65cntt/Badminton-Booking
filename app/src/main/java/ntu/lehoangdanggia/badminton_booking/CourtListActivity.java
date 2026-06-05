@@ -111,6 +111,49 @@ public class CourtListActivity extends AppCompatActivity {
                 return;
             }
 
+            try {
+                // 1. Lấy ngày giờ thực tế hiện tại của hệ thống (Ngày hôm nay)
+                Calendar currentSystemTime = Calendar.getInstance();
+                java.text.SimpleDateFormat systemFormat = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
+                String todayStr = systemFormat.format(currentSystemTime.getTime());
+                java.util.Date todayDate = systemFormat.parse(todayStr); // Chuẩn Date của hôm nay
+
+                // 2. Lấy ngày Admin đang xem trên bộ lọc và đưa về chuẩn Date
+                String rawDate = tvFilterDate.getText().toString().replace(" 📅", "").trim();
+                java.text.SimpleDateFormat viewFormat;
+                if (rawDate.contains("/")) {
+                    viewFormat = new java.text.SimpleDateFormat("d/M/yyyy", java.util.Locale.getDefault()); // Đọc được cả "6/6" và "06/06"
+                } else {
+                    viewFormat = new java.text.SimpleDateFormat("yyyy-M-d", java.util.Locale.getDefault());
+                }
+                java.util.Date viewedDate = viewFormat.parse(rawDate);
+
+                // 3. CHỈ TIẾN HÀNH KIỂM TRA QUÁ GIỜ NẾU NGÀY ĐẶT CHÍNH LÀ NGÀY HÔM NAY
+                if (viewedDate != null && viewedDate.equals(todayDate)) {
+                    int currentHour = currentSystemTime.get(Calendar.HOUR_OF_DAY);
+                    int currentMinute = currentSystemTime.get(Calendar.MINUTE);
+                    int nowInMinutes = (currentHour * 60) + currentMinute;
+
+                    for (TimeCell cell : selectedCellsList) {
+                        String timeLabel = cell.getTimeLabel(); // Ví dụ: "05:00 - 05:30"
+                        int startHour = Integer.parseInt(timeLabel.substring(0, 2));
+                        int startMinute = Integer.parseInt(timeLabel.substring(3, 5));
+                        int slotStartInMinutes = (startHour * 60) + startMinute;
+
+                        if (slotStartInMinutes <= nowInMinutes) {
+                            Toast.makeText(CourtListActivity.this, "⚠️ Ca [" + timeLabel + "] của ngày hôm nay đã quá giờ chơi, vui lòng bỏ chọn!", Toast.LENGTH_LONG).show();
+                            return; // Chặn đứng luồng, không cho chuyển trang
+                        }
+                    }
+                }
+
+                // 👉 Nếu viewedDate là ngày mai, ngày kia (viewedDate.after(todayDate)) -> Bỏ qua khối IF trên và chạy thẳng xuống dưới!
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // ─── CHUYỂN TRANG SANG MÀN HÌNH XÁC NHẬN (CHỈ CHẠY KHI HỢP LỆ) ───
             Intent intent = new Intent(CourtListActivity.this, BookingConfirmActivity.class);
             ArrayList<TimeCell> bundleList = new ArrayList<>(selectedCellsList);
             intent.putExtra("CHOSEN_SLOTS", bundleList);
@@ -118,7 +161,6 @@ public class CourtListActivity extends AppCompatActivity {
 
             bookingLauncher.launch(intent);
         });
-
         if (btnBack != null) {
             btnBack.setOnClickListener(v -> finish());
         }
@@ -341,41 +383,51 @@ public class CourtListActivity extends AppCompatActivity {
                     return;
                 }
 
-                // 🛠️ THÊM MỚI: Chặn đặt các ca đã qua thời gian thực
+                // 🛠️ ĐÃ SỬA: Bộ lọc phân bóc tách Ngày/Giờ chuẩn hóa cấu trúc Date
                 if ("Trống".equals(cell.getStatus())) {
                     try {
-                        // 1. Lấy ngày giờ hiện tại của hệ thống điện thoại/máy ảo
+                        // 1. Lấy ngày thực tế của hệ thống (Hôm nay) đưa về chuẩn Date sạch
                         Calendar currentSystemTime = Calendar.getInstance();
+                        java.text.SimpleDateFormat systemFormat = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
+                        String todayStr = systemFormat.format(currentSystemTime.getTime());
+                        java.util.Date todayDate = systemFormat.parse(todayStr);
 
-                        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
-                        String todayStr = sdf.format(currentSystemTime.getTime());
-
-                        // Trường hợp 1: Khách hàng đang xem lịch của chính NGÀY HÔM NAY
-                        if (cleanDate.equals(todayStr)) {
-                            String timeLabel = cell.getTimeLabel(); // Ví dụ: "06:00 - 07:30"
-                            int startHour = Integer.parseInt(timeLabel.substring(0, 2));
-                            int startMinute = Integer.parseInt(timeLabel.substring(3, 5));
-
-                            // Tạo mốc thời gian bắt đầu chính xác của ca đó trong ngày hôm nay
-                            Calendar slotStartTime = (Calendar) currentSystemTime.clone();
-                            slotStartTime.set(Calendar.HOUR_OF_DAY, startHour);
-                            slotStartTime.set(Calendar.MINUTE, startMinute);
-                            slotStartTime.set(Calendar.SECOND, 0);
-
-                            // Nếu thời gian thực tế đã vượt qua thời gian bắt đầu ca chơi này
-                            if (currentSystemTime.after(slotStartTime)) {
-                                Toast.makeText(CourtListActivity.this, "⏱️ Ca này đã quá giờ chơi, không thể chọn!", Toast.LENGTH_SHORT).show();
-                                return; // Ngắt luồng click, không cho tích chọn ô
-                            }
+                        // 2. Đọc chuỗi ngày trên bộ lọc giao diện (Hỗ trợ định dạng d/M/yyyy linh hoạt)
+                        String rawDateStr = tvFilterDate.getText().toString().replace(" 📅", "").trim();
+                        java.text.SimpleDateFormat viewFormat;
+                        if (rawDateStr.contains("/")) {
+                            viewFormat = new java.text.SimpleDateFormat("d/M/yyyy", java.util.Locale.getDefault());
+                        } else {
+                            viewFormat = new java.text.SimpleDateFormat("yyyy-M-d", java.util.Locale.getDefault());
                         }
-                        // Trường hợp 2: Khách hàng đang bấm lùi lịch về các NGÀY TRONG QUÁ KHỨ
-                        else {
-                            java.util.Date viewedDate = sdf.parse(cleanDate);
-                            java.util.Date todayDate = sdf.parse(todayStr);
-                            if (viewedDate != null && viewedDate.before(todayDate)) {
+                        java.util.Date viewedDate = viewFormat.parse(rawDateStr);
+
+                        if (viewedDate != null) {
+                            // 🎯 TÌNH HUỐNG 1: Nếu ngày đang xem thực sự nằm trong QUÁ KHỨ
+                            if (viewedDate.before(todayDate)) {
                                 Toast.makeText(CourtListActivity.this, "❌ Không thể đặt sân cho ngày trong quá khứ!", Toast.LENGTH_SHORT).show();
-                                return; // Ngắt luồng click
+                                return; // Chặn đứng, không cho chọn
                             }
+
+                            // 🎯 TÌNH HUỐNG 2: Nếu ngày đang xem CHÍNH LÀ NGÀY HÔM NAY -> Check giờ đồng hồ
+                            if (viewedDate.equals(todayDate)) {
+                                String timeLabel = cell.getTimeLabel(); // Ví dụ: "05:00 - 05:30"
+                                int startHour = Integer.parseInt(timeLabel.substring(0, 2));
+                                int startMinute = Integer.parseInt(timeLabel.substring(3, 5));
+
+                                Calendar slotStartTime = (Calendar) currentSystemTime.clone();
+                                slotStartTime.set(Calendar.HOUR_OF_DAY, startHour);
+                                slotStartTime.set(Calendar.MINUTE, startMinute);
+                                slotStartTime.set(Calendar.SECOND, 0);
+
+                                if (currentSystemTime.after(slotStartTime)) {
+                                    Toast.makeText(CourtListActivity.this, "⏱️ Ca này đã quá giờ chơi của hôm nay, không thể chọn!", Toast.LENGTH_SHORT).show();
+                                    return; // Chặn đứng, không cho chọn
+                                }
+                            }
+
+                            // 🎯 TÌNH HUỐNG 3: Nếu là ngày MAI (6/6), ngày KIA... (viewedDate.after(todayDate))
+                            // Code tự động đi xuyên qua bộ lọc an toàn này, cho phép tích chọn thoải mái!
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -467,11 +519,34 @@ public class CourtListActivity extends AppCompatActivity {
     }
 
     private void showDatePicker() {
+        // 1. Khởi tạo Calendar mặc định là ngày hiện tại
         final Calendar c = Calendar.getInstance();
+
+        // 2. 🎯 ĐOẠN SỬA LỖI: Đọc ngày đang hiển thị trên ô Text để đồng bộ lên lịch
+        try {
+            String rawDate = tvFilterDate.getText().toString();
+            String cleanDate = rawDate.replace(" 📅", "").trim(); // Ví dụ: "09/06/2026"
+
+            if (!cleanDate.isEmpty() && cleanDate.contains("/")) {
+                String[] parts = cleanDate.split("/");
+                int d = Integer.parseInt(parts[0]);
+                int m = Integer.parseInt(parts[1]) - 1; // Tháng trong Calendar chạy từ 0 - 11
+                int y = Integer.parseInt(parts[2]);
+
+                // Đặt lại mốc thời gian hiển thị cho đúng ngày trên ô text
+                c.set(Calendar.DAY_OF_MONTH, d);
+                c.set(Calendar.MONTH, m);
+                c.set(Calendar.YEAR, y);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         int year = c.get(Calendar.YEAR);
         int month = c.get(Calendar.MONTH);
         int day = c.get(Calendar.DAY_OF_MONTH);
 
+        // 3. Hiển thị DatePickerDialog dựa theo ngày đã được đồng bộ
         DatePickerDialog datePickerDialog = new DatePickerDialog(this,
                 (view, selectedYear, selectedMonth, selectedDay) -> {
                     String formattedDate = String.format("%02d/%02d/%04d", selectedDay, selectedMonth + 1, selectedYear);
@@ -481,12 +556,18 @@ public class CourtListActivity extends AppCompatActivity {
                         tvDateLabel.setText("Ngày\n" + String.format("%02d/%02d", selectedDay, selectedMonth + 1));
                     }
 
+                    // Gọi lắng nghe dữ liệu mới từ Firebase cho đúng ngày được chọn
                     listenToFirestoreBookings(tvFilterDate.getText().toString());
+
+                    // Vẽ lại giao diện lưới Timeline theo ngày mới chọn
+                    updateTimelineView();
+
+                    // Xóa sạch danh sách ca đã chọn cũ tránh việc bấm nhầm ca quá giờ của ngày cũ
+                    selectedCellsList.clear();
+                    updateQuickBookingBar();
                 }, year, month, day);
         datePickerDialog.show();
-    }
-
-    private void showCellWidthDialog() {
+    }    private void showCellWidthDialog() {
         String[] options = {"Nhỏ (Cột 20) 🔍", "Vừa (Cột 30) 🔎", "Lớn (Cột 40) 放大"};
         int checkedItem = 1;
         if (currentCellWidthDp == 20) checkedItem = 0;
